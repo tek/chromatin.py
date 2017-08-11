@@ -1,0 +1,6 @@
+TEST amino.nvim.Plugin:--
+TEST amino.nvim.chromatin.Plugin:stage_i
+ERROR amino.nvim.chromatin.Plugin:in <ribosome.machine.transition.WrappedHandler object at 0x7feb92b3a5f8>: result has no Optional: NvimIOTask(time=1502134354.8612344, prio=0.5, io=<ribosome.nvim.io.NvimIO object at 0x7feb92b3af28>)
+TEST amino.nvim.Plugin:--
+TEST amino.nvim.chromatin.Plugin:stage_i
+ERROR amino.nvim.chromatin.Plugin:in <ribosome.machine.transition.WrappedHandler object at 0x7feb92b599e8>: result has no Optional: NvimIOTask(time=1502134354.868322, prio=0.5, io=<ribosome.nvim.io.NvimIO object at 0x7feb92b59f98>)
