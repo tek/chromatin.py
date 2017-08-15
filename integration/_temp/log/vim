@@ -51,5 +51,3 @@ chdir(/home/tek/code/tek/python_nvim/chromatin)
 line 4: sourcing "/usr/share/nvim/runtime/autoload/provider/python3.vim"
 finished sourcing /usr/share/nvim/runtime/autoload/provider/python3.vim
 continuing in function remote#define#CommandBootstrap[1]..remote#host#Require[10]..provider#pythonx#Require
-in <ribosome.machine.transition.WrappedHandler object at 0x7feb92b3a5f8>: result has no Optional: NvimIOTask(time=1502134354.8612344, prio=0.5, io=<ribosome.nvim.io.NvimIO object at 0x7feb92b3af28>)
-in <ribosome.machine.transition.WrappedHandler object at 0x7feb92b599e8>: result has no Optional: NvimIOTask(time=1502134354.868322, prio=0.5, io=<ribosome.nvim.io.NvimIO object at 0x7feb92b59f98>)

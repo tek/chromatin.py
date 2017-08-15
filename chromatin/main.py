@@ -13,6 +13,6 @@ class Chromatin(ChromatinState):
         ChromatinState.__init__(self, vim, plugins.cons(core))
 
     def init(self):
-        return Env()
+        return Env(vim=self.vim)
 
 __all__ = ('Chromatin',)

@@ -1,0 +1,135 @@
+import abc
+import shutil
+import venv  # type: ignore
+import pkg_resources
+
+from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean
+from amino.util.string import ToStr
+from amino.boolean import true, false
+
+from ribosome import Job
+from ribosome.process import JobClient, Result
+
+from chromatin.plugin import VimPlugin
+
+from chromatin.logging import Logging
+from chromatin.venv import Venv
+
+
+class VenvState(ToStr):
+
+    def __init__(self, plugin: VimPlugin) -> None:
+        self.plugin = plugin
+
+    @property
+    def _arg_desc(self) -> List[str]:
+        return List(str(self.plugin))
+
+
+class VenvExistent(VenvState):
+    pass
+
+
+class VenvAbsent(VenvState):
+    pass
+
+
+@do
+def remove_dir(dir: Path) -> IO[None]:
+    exists = yield IO.delay(dir.exists)
+    yield IO.delay(shutil.rmtree, dir) if exists else IO.pure(None)
+
+
+@do
+def build(dir: Path, plugin: VimPlugin) -> IO[Venv]:
+    builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
+    context = yield IO.delay(builder.ensure_directories, str(dir))
+    yield IO.delay(builder.create_configuration, context)
+    yield IO.delay(builder.setup_python, context)
+    yield IO.delay(builder._setup_pip, context)
+    yield IO.delay(builder.setup_scripts, context)
+    yield IO.delay(builder.post_setup, context)
+    yield IO.pure(Venv(dir, context, plugin))
+
+
+class PackageState(ToStr):
+
+    def __init__(self, venv: Venv) -> None:
+        self.venv = venv
+
+    @abc.abstractproperty
+    def exists(self) -> Boolean:
+        ...
+
+
+class PackageExistent(PackageState):
+
+    def __init__(self, venv: Venv, dist: pkg_resources.Distribution) -> None:
+        self.venv = venv
+        self.dist = dist
+
+    @property
+    def _arg_desc(self) -> List[str]:
+        return List(str(self.venv), str(self.dist))
+
+    @property
+    def exists(self) -> Boolean:
+        return true
+
+
+class PackageAbsent(PackageState):
+
+    @property
+    def _arg_desc(self) -> List[str]:
+        return List()
+
+    @property
+    def exists(self) -> Boolean:
+        return false
+
+
+def package_state(venv: Venv, req: str) -> PackageState:
+    ws = pkg_resources.WorkingSet([venv.dir / 'lib' / 'python3.6' / 'site-packages'])
+    req = pkg_resources.Requirement(req)
+    return Maybe.check(ws.by_key.get(req.key)) / L(PackageExistent)(venv, _) | PackageAbsent(venv)
+
+
+def package_state_main(venv: Venv) -> PackageState:
+    return package_state(venv, venv.req)
+
+
+class Venvs(Logging):
+
+    def __init__(self, dir: Path) -> None:
+        self.dir = dir
+
+    def check(self, plugin: VimPlugin) -> VenvState:
+        return (
+            VenvExistent(plugin)
+            if (self.dir / plugin.spec).exists() else
+            VenvAbsent(plugin)
+        )
+
+    @do
+    def bootstrap(self, plugin: VimPlugin) -> IO[Venv]:
+        venv_dir = self.dir / plugin.spec
+        yield remove_dir(venv_dir)
+        yield build(venv_dir, plugin)
+
+    def package_state(self, venv: Venv) -> PackageState:
+        return package_state_main(venv)
+
+    def package_installed(self, venv: Venv) -> Boolean:
+        return self.package_state(venv).exists
+
+    def install(self, venv: Venv) -> Future[Result]:
+        pip_bin = Path(venv.ns.bin_path) / 'pip'
+        args = ['install', '-U', venv.req]
+        return Job(
+            client=JobClient(cwd=Path.cwd(), name=f'pip install {venv.req}'),
+            exe=str(pip_bin),
+            args=args,
+            loop=None
+        )
+
+__all__ = ('Venvs', 'VenvState', 'VenvExistent', 'VenvAbsent')

@@ -20,7 +20,11 @@ pkg_dir = os.environ.get('RIBOSOME_PKG_DIR')
 if pkg_dir:
     sys.path.insert(0, pkg_dir)
 
-from chromatin.nvim_plugin import ChromatinNvimPlugin
+try:
+    from chromatin.nvim_plugin import ChromatinNvimPlugin
+except Exception as e:
+    ribosome_root_logger.caught_exception('importing chromatin.nvim_plugin.ChromatinNvimPlugin', e)
+    raise
 
 @neovim.plugin
 class Plugin(ChromatinNvimPlugin):
