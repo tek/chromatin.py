@@ -21,13 +21,15 @@ class VenvState(ToStr):
     def __init__(self, plugin: VimPlugin) -> None:
         self.plugin = plugin
 
-    @property
     def _arg_desc(self) -> List[str]:
         return List(str(self.plugin))
 
 
 class VenvExistent(VenvState):
-    pass
+
+    def __init__(self, plugin, venv) -> None:
+        super().__init__(plugin)
+        self.venv = venv
 
 
 class VenvAbsent(VenvState):
@@ -52,6 +54,12 @@ def build(dir: Path, plugin: VimPlugin) -> IO[Venv]:
     yield IO.pure(Venv(dir, context, plugin))
 
 
+def cons_venv(dir: Path, plugin: VimPlugin) -> Venv:
+    builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
+    context = builder.ensure_directories(str(dir))
+    return Venv(dir, context, plugin)
+
+
 class PackageState(ToStr):
 
     def __init__(self, venv: Venv) -> None:
@@ -68,7 +76,6 @@ class PackageExistent(PackageState):
         self.venv = venv
         self.dist = dist
 
-    @property
     def _arg_desc(self) -> List[str]:
         return List(str(self.venv), str(self.dist))
 
@@ -79,7 +86,6 @@ class PackageExistent(PackageState):
 
 class PackageAbsent(PackageState):
 
-    @property
     def _arg_desc(self) -> List[str]:
         return List()
 
@@ -89,30 +95,31 @@ class PackageAbsent(PackageState):
 
 
 def package_state(venv: Venv, req: str) -> PackageState:
-    ws = pkg_resources.WorkingSet([venv.dir / 'lib' / 'python3.6' / 'site-packages'])
+    ws = pkg_resources.WorkingSet([venv.site])
     req = pkg_resources.Requirement(req)
     return Maybe.check(ws.by_key.get(req.key)) / L(PackageExistent)(venv, _) | PackageAbsent(venv)
 
 
 def package_state_main(venv: Venv) -> PackageState:
-    return package_state(venv, venv.req)
+    return package_state(venv, venv.name)
 
 
-class Venvs(Logging):
+class VenvFacade(Logging):
 
     def __init__(self, dir: Path) -> None:
         self.dir = dir
 
     def check(self, plugin: VimPlugin) -> VenvState:
+        dir = self.dir / plugin.name
         return (
-            VenvExistent(plugin)
-            if (self.dir / plugin.spec).exists() else
+            VenvExistent(plugin, cons_venv(dir, plugin))
+            if dir.exists() else
             VenvAbsent(plugin)
         )
 
     @do
     def bootstrap(self, plugin: VimPlugin) -> IO[Venv]:
-        venv_dir = self.dir / plugin.spec
+        venv_dir = self.dir / plugin.name
         yield remove_dir(venv_dir)
         yield build(venv_dir, plugin)
 
@@ -132,4 +139,4 @@ class Venvs(Logging):
             loop=None
         )
 
-__all__ = ('Venvs', 'VenvState', 'VenvExistent', 'VenvAbsent')
+__all__ = ('VenvFacade', 'VenvState', 'VenvExistent', 'VenvAbsent')

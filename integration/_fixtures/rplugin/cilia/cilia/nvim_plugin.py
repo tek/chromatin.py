@@ -11,11 +11,11 @@ from ribosome.request import command
 
 logfile = Path(os.environ['RIBOSOME_LOG_FILE'])
 amino_root_file_logging(logfile=logfile)
-name = 'flagellum'
+name = 'cilia'
 
 
 @neovim.plugin
-class NvimPlugin(NPlug, name=name, prefix='flag'):
+class NvimPlugin(NPlug, name=name, prefix='cil'):
 
     def __init__(self, vim: neovim.api.Nvim) -> None:
         super().__init__(NvimFacade(vim, name))
@@ -25,7 +25,7 @@ class NvimPlugin(NPlug, name=name, prefix='flag'):
         pass
 
     @command(sync=True)
-    def flag_test(self) -> None:
+    def cil_test(self) -> None:
         self.log.info(f'{name} working')
 
     def setup_handlers(self):

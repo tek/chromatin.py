@@ -4,12 +4,12 @@ from ribosome.data import Data
 from ribosome.record import dfield, list_field, map_field, field
 from ribosome.nvim import NvimFacade, AsyncVimProxy
 
-from amino import List, _
+from amino import List, _, Either
 
 from chromatin.logging import Logging
 from chromatin.plugin import VimPlugin
 from chromatin.venv import Venv
-from chromatin.venvs import Venvs
+from chromatin.venvs import VenvFacade
 
 
 class Env(Data, Logging):
@@ -19,8 +19,8 @@ class Env(Data, Logging):
     installed = list_field(Venv)
     venvs = map_field()
 
-    def add_plugin(self, spec: str) -> 'Env':
-        return self.append1.plugins(VimPlugin(spec=spec))
+    def add_plugin(self, name: str, spec: str) -> 'Env':
+        return self.append1.plugins(VimPlugin(name=name, spec=spec))
 
     @property
     def show_plugins(self) -> List[str]:
@@ -34,11 +34,15 @@ class Env(Data, Logging):
     def add_installed(self, venv: Venv) -> 'Env':
         return self.append1.installed(venv)
 
-    def missing(self, venvs: Venvs) -> List[Venv]:
+    def missing(self, venvs: VenvFacade) -> List[Venv]:
         return self.venvs.v.filter_not(venvs.package_installed)
 
     @property
     def _str_extra(self) -> List[Any]:
         return List(self.plugins, self.venvs)
+
+    @property
+    def venv_facade(self) -> Either[str, VenvFacade]:
+        return self.vim.vars.ppath('venv_dir') / VenvFacade
 
 __all__ = ('Env',)

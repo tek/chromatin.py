@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='flagellum',
-    description='test plugin 1',
+    name='cilia',
+    description='test plugin 2',
     version='1.0.0',
     author='Torsten Schmits',
     author_email='torstenschmits@gmail.com',

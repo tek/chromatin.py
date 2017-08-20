@@ -1,7 +1,7 @@
-from ribosome import Machine, NvimFacade
+from ribosome import NvimFacade
 from ribosome.nvim import HasNvim
-
 from ribosome.machine.state import SubMachine, SubTransitions, UnloopedRootMachine
+from ribosome.machine.base import MachineBase
 
 from chromatin.logging import Logging
 from chromatin.env import Env
@@ -10,7 +10,7 @@ from chromatin.env import Env
 class ChromatinComponent(SubMachine, HasNvim, Logging):
 
     def __init__(self, vim: NvimFacade, parent=None, title=None) -> None:
-        Machine.__init__(self, parent, title=title)
+        MachineBase.__init__(self, parent, title=title)
         HasNvim.__init__(self, vim)
 
 

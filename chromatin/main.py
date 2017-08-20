@@ -12,6 +12,7 @@ class Chromatin(ChromatinState):
         core = 'chromatin.plugins.core'
         ChromatinState.__init__(self, vim, plugins.cons(core))
 
+    @property
     def init(self):
         return Env(vim=self.vim)
 
