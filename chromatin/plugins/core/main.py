@@ -11,7 +11,7 @@ from amino.state import IdState, EitherState
 from amino import __, do, _, Either, L, Just, Future, List, Right
 from amino.lazy import lazy
 
-from ribosome.machine import may_handle, Message
+from ribosome.machine import Message
 from ribosome.machine.base import io, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
@@ -87,7 +87,7 @@ class CoreTransitions(ChromatinTransitions):
     def setup_plugins(self) -> Message:
         return List(SetupVenvs(), InstallMissing().at(1.0).pub)
 
-    @may_handle(SetupVenvs)
+    @trans.multi(SetupVenvs, trans.est)
     def setup_venvs(self) -> Message:
         return self.funcs.setup_venvs()
 
@@ -95,15 +95,15 @@ class CoreTransitions(ChromatinTransitions):
     def install_missing(self) -> Message:
         return self.funcs.install_missing()
 
-    @may_handle(Installed)
+    @trans.unit(Installed, trans.st)
     def installed(self) -> Message:
         return IdState.modify(__.add_installed(self.msg.venv))
 
-    @may_handle(AddVenv)
+    @trans.unit(AddVenv, trans.st)
     def add_venv(self) -> Message:
         return IdState.modify(__.add_venv(self.msg.venv))
 
-    @may_handle(ActivateAll)
+    @trans.multi(ActivateAll, trans.est)
     def activate_all(self) -> Message:
         return self.funcs.activate_all()
 
