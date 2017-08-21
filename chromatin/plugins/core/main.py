@@ -72,8 +72,8 @@ class CoreTransitions(ChromatinTransitions):
     def stage_i(self) -> Message:
         return io(__.vars.set_p('started', True))
 
-    @may_handle(AddPlugin)
-    def add_plugin(self) -> StateT:
+    @trans.unit(AddPlugin, trans.st)
+    def add_plugin(self) -> IdState[Env, None]:
         spec = self.msg.spec
         name = self.msg.options.get('name') | spec
         return IdState.modify(__.add_plugin(name, spec))
