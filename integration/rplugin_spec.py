@@ -2,7 +2,7 @@ from kallikrein import Expectation, kf
 from kallikrein.matchers.either import be_right
 from kallikrein.matchers.typed import have_type
 
-from amino.test.path import fixture_path, base_dir
+from amino.test.path import fixture_path
 from amino.test import temp_dir
 
 from ribosome.test.integration.klk import later
@@ -15,10 +15,10 @@ from integration._support.base import ChromatinPluginIntegrationSpec
 
 class RpluginSpec(ChromatinPluginIntegrationSpec):
     '''launch rplugins from venvs
-    test $test
+    two plugins in separate venvs $two
     '''
 
-    def test(self) -> Expectation:
+    def two(self) -> Expectation:
         name1 = 'flagellum'
         name2 = 'cilia'
         dir = temp_dir('rplugin', 'venv')
@@ -42,7 +42,7 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
         self._wait(.1)
         self.vim.cmd('CrmActivateAll')
         self._wait(.1)
-        exp = lambda n: kf(lambda: self.vim.call('exists', f':{n}Test')).must(be_right(2))
+        exp = lambda n: kf(self.vim.call, 'exists', f':{n}Test').must(be_right(2))
         return later(exp('Flag') & exp('Cil'))
 
 __all__ = ('RpluginSpec',)

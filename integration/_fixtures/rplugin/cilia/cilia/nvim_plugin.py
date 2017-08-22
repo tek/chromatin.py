@@ -19,7 +19,6 @@ class NvimPlugin(NPlug, name=name, prefix='cil'):
 
     def __init__(self, vim: neovim.api.Nvim) -> None:
         super().__init__(NvimFacade(vim, name))
-        self.setup_handlers()
 
     def start_plugin(self) -> None:
         pass
