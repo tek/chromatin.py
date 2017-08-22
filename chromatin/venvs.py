@@ -120,6 +120,7 @@ class VenvFacade(Logging):
     @do
     def bootstrap(self, plugin: VimPlugin) -> IO[Venv]:
         venv_dir = self.dir / plugin.name
+        self.log.debug(f'bootstrapping {plugin} in {venv_dir}')
         yield remove_dir(venv_dir)
         yield build(venv_dir, plugin)
 
@@ -130,6 +131,7 @@ class VenvFacade(Logging):
         return self.package_state(venv).exists
 
     def install(self, venv: Venv) -> Future[Result]:
+        self.log.debug(f'installing {venv}')
         pip_bin = Path(venv.ns.bin_path) / 'pip'
         args = ['install', '-U', venv.req]
         return Job(
