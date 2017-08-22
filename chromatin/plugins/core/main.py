@@ -9,13 +9,13 @@ from chromatin.host import PluginHost
 
 from amino.state import IdState, EitherState
 from amino import __, do, _, Either, L, Just, Future, List, Right
-from amino.lazy import lazy
 
 from ribosome.machine import Message
 from ribosome.machine.base import io, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
 from ribosome.nvim import NvimFacade
+from ribosome.machine.messages import Info
 
 
 class PluginFunctions(Logging):
@@ -65,10 +65,6 @@ class CoreTransitions(ChromatinTransitions):
     def funcs(self) -> PluginFunctions:
         return PluginFunctions()
 
-    @lazy
-    def venvs(self) -> Either[str, VenvFacade]:
-        return self.vim.vars.ppath('venv_dir') / VenvFacade
-
     @trans.one(StageI)
     def stage_i(self) -> Message:
         return io(__.vars.set_p('started', True))
@@ -79,9 +75,12 @@ class CoreTransitions(ChromatinTransitions):
         name = self.msg.options.get('name') | spec
         return IdState.modify(__.add_plugin(name, spec))
 
-    @trans.unit(ShowPlugins)
-    def show_plugins(self) -> None:
-        self.log.info(self.data.show_plugins.join_lines)
+    @trans.one(ShowPlugins, trans.st)
+    @do
+    def show_plugins(self) -> IdState[Env, Message]:
+        venv_dir = yield IdState.inspect(_.venv_dir)
+        venv_dir_msg = f'virtualenv dir: {venv_dir.value}'
+        yield IdState.pure(Info(self.data.show_plugins.cons(venv_dir_msg).join_lines))
 
     @trans.multi(SetupPlugins)
     def setup_plugins(self) -> Message:
