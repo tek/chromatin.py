@@ -3,7 +3,7 @@ import shutil
 import venv  # type: ignore
 import pkg_resources
 
-from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean
+from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean, Map
 from amino.util.string import ToStr
 from amino.boolean import true, false
 
@@ -138,7 +138,8 @@ class VenvFacade(Logging):
             client=JobClient(cwd=Path.cwd(), name=f'pip install {venv.req}'),
             exe=str(pip_bin),
             args=args,
-            loop=None
+            loop=None,
+            kw=Map(env=dict()),
         )
 
 __all__ = ('VenvFacade', 'VenvState', 'VenvExistent', 'VenvAbsent')
