@@ -52,4 +52,23 @@ line 4: sourcing "/usr/share/nvim/runtime/autoload/provider/python3.vim"
 finished sourcing /usr/share/nvim/runtime/autoload/provider/python3.vim
 continuing in function remote#define#CommandBootstrap[1]..remote#host#Require[10]..provider#pythonx#Require
 installed plugin 'flagellum'
-installed plugin 'cilia'
+Searching for "chromatin/flagellum/*.vim" in "/home/tek/.config/nvim,/etc/xdg/nvim,/home/tek/.local/share/nvim/site,/usr/local/share/nvim/site,/usr/share/nvim/site,/usr/share/nvim/runtime,/usr/share/nvim/site/after,/usr/local/share/nvim/site/after,/home/tek/.local/share/nvim/site/after,/etc/xdg/nvim/after,/home/tek/.config/nvim/after,/home/tek/code/tek/python_nvim/chromatin/integration/_fixtures/config/rtp,/home/tek/code/tek/python_nvim/chromatin/integration/_fixtures/rplugin/config/rtp"
+Searching for "/home/tek/.config/nvim/chromatin/flagellum/*.vim"
+Searching for "/etc/xdg/nvim/chromatin/flagellum/*.vim"
+Searching for "/home/tek/.local/share/nvim/site/chromatin/flagellum/*.vim"
+Searching for "/usr/local/share/nvim/site/chromatin/flagellum/*.vim"
+Searching for "/usr/share/nvim/site/chromatin/flagellum/*.vim"
+Searching for "/usr/share/nvim/runtime/chromatin/flagellum/*.vim"
+Searching for "/usr/share/nvim/site/after/chromatin/flagellum/*.vim"
+Searching for "/usr/local/share/nvim/site/after/chromatin/flagellum/*.vim"
+Searching for "/home/tek/.local/share/nvim/site/after/chromatin/flagellum/*.vim"
+Searching for "/etc/xdg/nvim/after/chromatin/flagellum/*.vim"
+Searching for "/home/tek/.config/nvim/after/chromatin/flagellum/*.vim"
+Searching for "/home/tek/code/tek/python_nvim/chromatin/integration/_fixtures/config/rtp/chromatin/flagellum/*.vim"
+Searching for "/home/tek/code/tek/python_nvim/chromatin/integration/_fixtures/rplugin/config/rtp/chromatin/flagellum/*.vim"
+chdir(/home/tek/code/tek/python_nvim/chromatin)
+chdir(/home/tek/code/tek/python_nvim/chromatin/integration/_fixtures/rplugin/config/rtp/chromatin/flagellum)
+chdir(/home/tek/code/tek/python_nvim/chromatin)
+sourcing "/home/tek/code/tek/python_nvim/chromatin/integration/_fixtures/rplugin/config/rtp/chromatin/flagellum/value.vim"
+finished sourcing /home/tek/code/tek/python_nvim/chromatin/integration/_fixtures/rplugin/config/rtp/chromatin/flagellum/value.vim
+success

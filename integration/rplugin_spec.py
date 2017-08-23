@@ -4,6 +4,7 @@ from kallikrein import Expectation, kf
 from kallikrein.matchers.either import be_right
 from kallikrein.matchers.typed import have_type
 from kallikrein.matchers.maybe import be_just
+from kallikrein.matchers.end_with import end_with
 
 from amino.test.path import fixture_path
 from amino.test import temp_dir
@@ -22,6 +23,7 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
     two plugins in separate venvs, explicit initialization $two_explicit
     automatic initialization $auto
     update a plugin $update
+    load plugin config from `rtp/chromatin/flagellum` after activation $config
     '''
 
     def plug_exists(self, name: str) -> Expectation:
@@ -70,14 +72,26 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
         self.package_installed(venvs, plugin)
         return later(self.plug_exists('Flag'))
 
-    def update(self) -> Expectation:
+    def activate_one(self) -> VimPlugin:
         venvs, plugin = self.setup_one()
         self.cmd_sync('CrmSetupPlugins')
         self.venv_existent(venvs, plugin)
         self.package_installed(venvs, plugin)
         self.cmd_sync('CrmActivate')
         later(self.plug_exists('Flag'))
+        return plugin
+
+    def update(self) -> Expectation:
+        plugin = self.activate_one()
         self.cmd_sync('CrmUpdate')
         return self._log_line(-1, be_just(resources.updated_plugin(plugin.name)))
+
+    def config(self) -> Expectation:
+        rtp = fixture_path('rplugin', 'config', 'rtp')
+        self.vim.options.amend_l('runtimepath', rtp)
+        self.activate_one()
+        self._var_becomes('flagellum_value', 'success')
+        self.vim.cmd_sync('FlagConfTest')
+        return self._log_line(-1, be_just(end_with('success')))
 
 __all__ = ('RpluginSpec',)

@@ -43,6 +43,7 @@ The command `CrmUpdate [plugin_names]` runs `pip install --upgrade` for the spec
 
 ## Configure
 
-TODO
+After a plugin has been loaded, files in `{runtimepath}/chromatin/<plugin_name>/*.vim` are sourced to allow for
+post-load configuration.
 
 [ribosome]: https://github.com/tek/ribosome

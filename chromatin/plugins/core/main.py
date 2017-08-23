@@ -170,6 +170,7 @@ class CoreTransitions(ChromatinTransitions):
         spec = RpcHandlerSpec.cmd(1, f'{cname}SetupRpc', dict())
         define_handler(self.vim, venv.name, spec, venv.plugin_path)
         self.vim.cmd_sync(f'{cname}SetupRpc', verbose=True)
+        self.vim.runtime(f'chromatin/{venv.name}/*')
         return State.modify(__.activate_venv(venv))
 
     @trans.multi(UpdatePlugins, trans.est)

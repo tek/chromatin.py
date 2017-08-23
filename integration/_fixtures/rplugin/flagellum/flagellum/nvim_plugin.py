@@ -26,4 +26,9 @@ class NvimPlugin(NPlug, name=name, prefix='flag'):
     def flag_test(self) -> None:
         self.log.info(f'{name} working')
 
+    @command(sync=True)
+    def flag_conf_test(self) -> None:
+        value = self.vim.vars.p('value') | 'failure'
+        self.log.info(value)
+
 __all__ = ('NvimPlugin',)
