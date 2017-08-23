@@ -135,7 +135,7 @@ class VenvFacade(Logging):
         pip_bin = Path(venv.ns.bin_path) / 'pip'
         args = ['install', '-U', venv.req]
         return Job(
-            client=JobClient(cwd=Path.cwd(), name=f'pip install {venv.req}'),
+            client=JobClient(cwd=Path.cwd(), name=f'pip install -U {venv.req}'),
             exe=str(pip_bin),
             args=args,
             loop=None,

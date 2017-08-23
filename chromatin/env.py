@@ -4,7 +4,8 @@ from ribosome.data import Data
 from ribosome.record import dfield, list_field, map_field, field
 from ribosome.nvim import NvimFacade, AsyncVimProxy
 
-from amino import List, _, Either, Path, Try, env, Right, do
+from amino import List, _, Either, Path, Try, env, Right, do, Boolean
+from amino.boolean import true
 
 from chromatin.logging import Logging
 from chromatin.plugin import VimPlugin
@@ -25,8 +26,9 @@ class Env(Data, Logging):
     vim = field((NvimFacade, AsyncVimProxy))
     initialized = dfield(False)
     plugins = list_field(VimPlugin)
-    installed = list_field(Venv)
     venvs = map_field()
+    installed = list_field(Venv)
+    active = list_field(Venv)
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
         return self.append1.plugins(VimPlugin(name=name, spec=spec))
@@ -43,8 +45,14 @@ class Env(Data, Logging):
     def add_installed(self, venv: Venv) -> 'Env':
         return self.append1.installed(venv)
 
-    def missing(self, venvs: VenvFacade) -> List[Venv]:
+    def missing_in(self, venvs: VenvFacade) -> List[Venv]:
         return self.venvs.v.filter_not(venvs.package_installed)
+
+    @property
+    @do
+    def missing(self) -> Either[str, List[Venv]]:
+        venv_facade = yield self.venv_facade
+        yield Right(self.missing_in(venv_facade))
 
     @property
     def _str_extra(self) -> List[Any]:
@@ -57,5 +65,19 @@ class Env(Data, Logging):
     @property
     def venv_facade(self) -> Either[str, VenvFacade]:
         return self.venv_dir / VenvFacade
+
+    @property
+    def want_init(self) -> Boolean:
+        return self.vim.vars.pb('autostart') | true
+
+    @property
+    def inactive(self) -> List[Venv]:
+        return self.installed.remove_all(self.active)
+
+    def activate_venv(self, venv: Venv) -> 'Env':
+        return self.append1.active(venv)
+
+    def installed_by_name(self, names: List[str]) -> List[Venv]:
+        return self.installed.filter(lambda v: v.name in names)
 
 __all__ = ('Env',)

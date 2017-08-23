@@ -28,7 +28,7 @@ class ChromatinPluginIntegrationSpec(IntegrationCommon, PluginIntegrationKlkSpec
 
     def _start_plugin(self) -> None:
         self._debug = True
-        self.vim.cmd('ChromatinStart')
+        self.vim.cmd_sync('ChromatinStart')
         self._pvar_becomes('started', True)
 
 __all__ = ('ChromatinIntegrationSpec', 'ChromatinPluginIntegrationSpec')

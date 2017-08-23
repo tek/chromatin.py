@@ -51,3 +51,5 @@ chdir(/home/tek/code/tek/python_nvim/chromatin)
 line 4: sourcing "/usr/share/nvim/runtime/autoload/provider/python3.vim"
 finished sourcing /usr/share/nvim/runtime/autoload/provider/python3.vim
 continuing in function remote#define#CommandBootstrap[1]..remote#host#Require[10]..provider#pythonx#Require
+installed plugin 'flagellum'
+installed plugin 'cilia'
