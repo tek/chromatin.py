@@ -6,6 +6,14 @@ This **neovim** python remote plugin provides management for plugins written wit
 Each plugin is installed with `pip` into a separate virtualenv and loaded automatically, without the need for
 `UpdateRemotePlugins`.
 
+# Install
+
+The plugin itself needs [ribosome] to be installed:
+
+```
+pip install ribosome
+```
+
 # Usage
 
 ## Declare
