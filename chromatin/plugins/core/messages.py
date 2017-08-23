@@ -12,11 +12,11 @@ AddVenv = message('AddVenv', 'venv')
 IsInstalled = message('Installed', 'venv')
 Installed = message('Installed', 'venv')
 Updated = message('Updated', 'venv')
-ActivateAll = message('ActivateAll')
+Activate = message('Activate', 'name', varargs='plugins')
 Activated = message('Activated', 'venv')
 UpdatePlugins = message('UpdatePlugins', varargs='plugins')
 Reboot = message('Reboot', 'venv')
 
 __all__ = ('StageI', 'AddPlugin', 'ShowPlugins', 'SetupPlugins', 'SetupVenvs', 'InstallMissing', 'AddVenv',
-           'IsInstalled', 'Installed', 'Updated', 'ActivateAll', 'Activated', 'StageII', 'PostSetup', 'UpdatePlugins',
+           'IsInstalled', 'Installed', 'Updated', 'Activate', 'Activated', 'StageII', 'PostSetup', 'UpdatePlugins',
            'Reboot')

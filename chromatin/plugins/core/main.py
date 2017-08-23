@@ -1,7 +1,7 @@
 from chromatin.state import ChromatinTransitions, ChromatinComponent
 from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, StageI, SetupPlugins, SetupVenvs, InstallMissing,
-                                             AddVenv, IsInstalled, ActivateAll, Activated, StageII, PostSetup,
-                                             Installed, UpdatePlugins, Updated, Reboot)
+                                             AddVenv, IsInstalled, Activated, StageII, PostSetup, Installed,
+                                             UpdatePlugins, Updated, Reboot, Activate)
 from chromatin.venvs import VenvExistent
 from chromatin.env import Env
 from chromatin.venv import Venv
@@ -65,7 +65,7 @@ class PluginFunctions(Logging):
         )
 
     @do
-    def activate_one(self, vim: NvimFacade, venv: Venv) -> Either[str, Activated]:
+    def activate_venv(self, vim: NvimFacade, venv: Venv) -> Either[str, Activated]:
         host = PluginHost(vim)
         yield host.start(venv)
         yield host.require(venv)
@@ -74,12 +74,20 @@ class PluginFunctions(Logging):
     @do
     def activate_multi(self, venvs: List[Venv]) -> EitherState[Env, List[Message]]:
         vim = yield EitherState.inspect(_.vim)
-        yield EitherState.pure(venvs / L(self.activate_one)(vim, _) / __.value_or(Error))
+        yield EitherState.pure(venvs / L(self.activate_venv)(vim, _) / __.value_or(Error))
 
     @do
+    def activate_by_names(self, plugins: List[str]) -> EitherState[Env, List[Message]]:
+        getter = _.installed if plugins.empty else __.installed_by_name(plugins)
+        venvs = yield EitherState.inspect(getter)
+        yield (
+            EitherState.pure(List(Error(resources.no_plugins_match_for_activation(plugins))))
+            if venvs.empty else
+            self.activate_multi(venvs)
+        )
+
     def activate_all(self) -> EitherState[Env, List[Message]]:
-        installed = yield EitherState.inspect(_.installed)
-        yield self.activate_multi(installed)
+        return self.activate_by_names(List())
 
     @do
     def activate_newly_installed(self) -> EitherState[Env, List[Message]]:
@@ -150,9 +158,9 @@ class CoreTransitions(ChromatinTransitions):
     def add_venv(self) -> State[Env, None]:
         return State.modify(__.add_venv(self.msg.venv))
 
-    @trans.multi(ActivateAll, trans.est)
-    def activate_all(self) -> EitherState[Env, List[Message]]:
-        return self.funcs.activate_all()
+    @trans.multi(Activate, trans.est)
+    def activate(self) -> EitherState[Env, List[Message]]:
+        return self.funcs.activate_all(self.msg.plugins)
 
     @trans.unit(Activated, trans.st)
     def activated(self) -> State[Env, None]:

@@ -50,7 +50,7 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
         self.venv_existent(venvs, plugin1)
         self.package_installed(venvs, plugin1)
         self.package_installed(venvs, plugin2)
-        self.cmd('CrmActivateAll')
+        self.cmd('CrmActivate')
         return later(self.plug_exists('Flag') & self.plug_exists('Cil'))
 
     def setup_one(self) -> Tuple[VenvFacade, VimPlugin]:
@@ -75,7 +75,7 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
         self.cmd_sync('CrmSetupPlugins')
         self.venv_existent(venvs, plugin)
         self.package_installed(venvs, plugin)
-        self.cmd_sync('CrmActivateAll')
+        self.cmd_sync('CrmActivate')
         later(self.plug_exists('Flag'))
         self.cmd_sync('CrmUpdate')
         return self._log_line(-1, be_just(resources.updated_plugin(plugin.name)))

@@ -10,8 +10,8 @@ from ribosome.request import msg_command, json_msg_command
 from ribosome.nvim import NvimFacade
 
 from chromatin.main import Chromatin
-from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, StageI, SetupPlugins, ActivateAll, StageII,
-                                             UpdatePlugins)
+from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, StageI, SetupPlugins, StageII, UpdatePlugins,
+                                             Activate)
 
 
 class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
@@ -59,8 +59,8 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
     def crm_setup_plugins(self) -> None:
         pass
 
-    @msg_command(ActivateAll)
-    def crm_activate_all(self) -> None:
+    @msg_command(Activate)
+    def crm_activate(self) -> None:
         pass
 
     @msg_command(UpdatePlugins)
