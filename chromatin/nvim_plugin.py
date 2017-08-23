@@ -20,6 +20,7 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
         super().__init__(NvimFacade(vim, 'chromatin'))
         self.initialized = False
         self.chromatin: Chromatin = None
+        self.state()
 
     @property
     def _default_plugins(self) -> List[str]:
@@ -36,6 +37,7 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
         if self.chromatin is None and not self.initialized:
             self.initialized = True
             self.start_plugin()
+        self.wait_for_startup()
         return self.chromatin
 
     def wait_for_startup(self) -> bool:
