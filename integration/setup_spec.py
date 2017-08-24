@@ -1,7 +1,6 @@
 from typing import Tuple
 
 from kallikrein import Expectation, kf
-from kallikrein.matchers.either import be_right
 from kallikrein.matchers.typed import have_type
 from kallikrein.matchers.maybe import be_just
 from kallikrein.matchers.end_with import end_with
@@ -18,8 +17,8 @@ from chromatin.util import resources
 from integration._support.base import ChromatinPluginIntegrationSpec
 
 
-class RpluginSpec(ChromatinPluginIntegrationSpec):
-    '''launch rplugins from venvs
+class SetupSpec(ChromatinPluginIntegrationSpec):
+    '''bootstrap and activate plugins in venvs
     two plugins in separate venvs, explicit initialization $two_explicit
     automatic initialization $auto
     update a plugin $update
@@ -94,4 +93,4 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
         self.vim.cmd_sync('FlagConfTest')
         return self._log_line(-1, be_just(end_with('success')))
 
-__all__ = ('RpluginSpec',)
+__all__ = ('SetupSpec',)
