@@ -27,7 +27,7 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
     '''
 
     def plug_exists(self, name: str) -> Expectation:
-        return kf(self.vim.call, 'exists', f':{name}Test').must(be_right(2))
+        return kf(self.vim.command_exists, f'{name}Test').true
 
     def venv_existent(self, venvs: VenvFacade, plugin: VimPlugin) -> Expectation:
         return later(kf(venvs.check, plugin).must(have_type(VenvExistent)), intval=.5)
@@ -61,8 +61,8 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
         venvs = VenvFacade(dir)
         plugin = VimPlugin(name=name, spec=name)
         self.vim.vars.set_p('venv_dir', str(dir))
-        path1 = fixture_path('rplugin', name)
-        self.json_cmd_sync('Cram', path1, name=name)
+        path = fixture_path('rplugin', name)
+        self.json_cmd_sync('Cram', path, name=name)
         return venvs, plugin
 
     def auto(self) -> Expectation:
