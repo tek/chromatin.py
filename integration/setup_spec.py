@@ -1,38 +1,21 @@
-from typing import Tuple
-
-from kallikrein import Expectation, kf
-from kallikrein.matchers.typed import have_type
-from kallikrein.matchers.maybe import be_just
-from kallikrein.matchers.end_with import end_with
+from kallikrein import Expectation
 
 from amino.test.path import fixture_path
 from amino.test import temp_dir
 
 from ribosome.test.integration.klk import later
 
-from chromatin.venvs import VenvFacade, VenvExistent
+from chromatin.venvs import VenvFacade
 from chromatin.plugin import VimPlugin
-from chromatin.util import resources
 
-from integration._support.base import ChromatinPluginIntegrationSpec
+from integration._support.rplugin_spec import RpluginSpec
 
 
-class SetupSpec(ChromatinPluginIntegrationSpec):
+class SetupSpec(RpluginSpec):
     '''bootstrap and activate plugins in venvs
     two plugins in separate venvs, explicit initialization $two_explicit
     automatic initialization $auto
-    update a plugin $update
-    load plugin config from `rtp/chromatin/flagellum` after activation $config
     '''
-
-    def plug_exists(self, name: str) -> Expectation:
-        return kf(self.vim.command_exists, f'{name}Test').true
-
-    def venv_existent(self, venvs: VenvFacade, plugin: VimPlugin) -> Expectation:
-        return later(kf(venvs.check, plugin).must(have_type(VenvExistent)), intval=.5)
-
-    def package_installed(self, venvs: VenvFacade, plugin: VimPlugin) -> Expectation:
-        return later(kf(venvs.package_installed, venvs.check(plugin).venv).true, 20, .5)
 
     def two_explicit(self) -> Expectation:
         self.vim.vars.set_p('autostart', False)
@@ -54,43 +37,11 @@ class SetupSpec(ChromatinPluginIntegrationSpec):
         self.cmd('CrmActivate')
         return later(self.plug_exists('Flag') & self.plug_exists('Cil'))
 
-    def setup_one(self) -> Tuple[VenvFacade, VimPlugin]:
-        name = 'flagellum'
-        dir = temp_dir('rplugin', 'venv')
-        venvs = VenvFacade(dir)
-        plugin = VimPlugin(name=name, spec=name)
-        self.vim.vars.set_p('venv_dir', str(dir))
-        path = fixture_path('rplugin', name)
-        self.json_cmd_sync('Cram', path, name=name)
-        return venvs, plugin
-
     def auto(self) -> Expectation:
-        venvs, plugin = self.setup_one()
+        venvs, plugin = self.setup_one('flagellum')
         self.vim.doautocmd('VimEnter')
         self.venv_existent(venvs, plugin)
         self.package_installed(venvs, plugin)
         return later(self.plug_exists('Flag'))
-
-    def activate_one(self) -> VimPlugin:
-        venvs, plugin = self.setup_one()
-        self.cmd_sync('CrmSetupPlugins')
-        self.venv_existent(venvs, plugin)
-        self.package_installed(venvs, plugin)
-        self.cmd_sync('CrmActivate')
-        later(self.plug_exists('Flag'))
-        return plugin
-
-    def update(self) -> Expectation:
-        plugin = self.activate_one()
-        self.cmd_sync('CrmUpdate')
-        return self._log_line(-1, be_just(resources.updated_plugin(plugin.name)))
-
-    def config(self) -> Expectation:
-        rtp = fixture_path('rplugin', 'config', 'rtp')
-        self.vim.options.amend_l('runtimepath', rtp)
-        self.activate_one()
-        self._var_becomes('flagellum_value', 'success')
-        self.vim.cmd_sync('FlagConfTest')
-        return self._log_line(-1, be_just(end_with('success')))
 
 __all__ = ('SetupSpec',)

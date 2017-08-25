@@ -1,3 +1,5 @@
+import typing
+
 from ribosome.nvim import NvimFacade
 
 from chromatin.venv import Venv
@@ -5,25 +7,9 @@ from chromatin.logging import Logging
 
 from amino import Either, Path, do
 
-host_start_function_name = 'CrmStartHost'
 
-host_start_function_code = f'''
-    function! {host_start_function_name}(args, host)
-        let channel_id = jobstart(a:args, {{'rpc': v:true}})
-        if rpcrequest(channel_id, 'poll') ==# 'ok'
-            return channel_id
-        else
-            throw 'could not load host ' . a:host.name
-        endif
-    endfunction
-'''
-
-require_function_name = 'remote#host#Require'
-
-
-def start_host_cmd(name: str, python_exe: Path, plug: Path) -> str:
-    cmdline = [str(python_exe), '-c', 'import neovim; neovim.start_host()', str(plug)]
-    return f'''call remote#host#Register('{name}', '*', function('{host_start_function_name}', [{cmdline!r}]))'''
+def host_cmdline(python_exe: Path, plug: Path) -> typing.List[str]:
+    return [str(python_exe), '-c', 'import neovim; neovim.start_host()', str(plug)]
 
 
 class PluginHost(Logging):
@@ -32,14 +18,9 @@ class PluginHost(Logging):
         self.vim = vim
 
     @do
-    def start(self, venv: Venv) -> Either[str, str]:
-        if not self.vim.function_exists(host_start_function_name):
-            yield self.vim.execute(host_start_function_code)
+    def start(self, venv: Venv) -> Either[str, int]:
         exe = yield venv.python_executable
-        yield self.vim.cmd_sync(start_host_cmd(venv.name, exe, venv.plugin_path))
-
-    def require(self, venv: Venv) -> Either[str, str]:
-        return self.vim.call(require_function_name, venv.name)
-
+        cmdline = host_cmdline(exe, venv.plugin_path)
+        yield self.vim.call('jobstart', cmdline, dict(rpc=True))
 
 __all__ = ('PluginHost',)

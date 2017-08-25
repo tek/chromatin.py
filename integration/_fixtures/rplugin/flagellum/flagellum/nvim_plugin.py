@@ -5,7 +5,6 @@ from amino import Path
 from amino.logging import amino_root_file_logging
 
 from ribosome import NvimPlugin as NPlug
-from ribosome.nvim import NvimFacade
 from ribosome.request import command
 
 logfile = Path(os.environ['RIBOSOME_LOG_FILE'])
@@ -16,9 +15,6 @@ name = 'flagellum'
 @neovim.plugin
 class NvimPlugin(NPlug, name=name, prefix='flag'):
 
-    def __init__(self, vim: neovim.api.Nvim) -> None:
-        super().__init__(NvimFacade(vim, name))
-
     def start_plugin(self) -> None:
         pass
 
@@ -27,8 +23,17 @@ class NvimPlugin(NPlug, name=name, prefix='flag'):
         self.log.info(f'{name} working')
 
     @command(sync=True)
+    def flag_arg_test(self, num: int) -> None:
+        value = self.vim.vars.p('value') | 'failure'
+        self.log.info(f'{value} {num}')
+
+    @command(sync=True)
     def flag_conf_test(self) -> None:
         value = self.vim.vars.p('value') | 'failure'
         self.log.info(value)
+
+    @neovim.autocmd('VimEnter')
+    def vim_enter(self):
+        self.log.info('autocmd works')
 
 __all__ = ('NvimPlugin',)

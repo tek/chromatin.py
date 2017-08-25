@@ -10,7 +10,7 @@ from chromatin.host import PluginHost
 from chromatin.util import resources
 
 from amino.state import State, EitherState
-from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean
+from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists
 from amino.util.string import camelcaseify
 from amino.boolean import true, false
 
@@ -18,9 +18,9 @@ from ribosome.machine import Message
 from ribosome.machine.base import io, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
-from ribosome.nvim import NvimFacade
-from ribosome.machine.messages import Info
-from ribosome.rpc import define_handler, RpcHandlerSpec
+from ribosome.nvim import NvimFacade, NvimIO
+from ribosome.machine.messages import Info, NvimIOTask
+from ribosome.rpc import define_handler, RpcHandlerSpec, DefinedHandler
 
 
 class PluginFunctions(Logging):
@@ -67,9 +67,8 @@ class PluginFunctions(Logging):
     @do
     def activate_venv(self, vim: NvimFacade, venv: Venv) -> Either[str, Activated]:
         host = PluginHost(vim)
-        yield host.start(venv)
-        yield host.require(venv)
-        yield Right(Activated(venv))
+        channel = yield host.start(venv)
+        yield Right(Activated(venv, channel))
 
     @do
     def activate_multi(self, venvs: List[Venv]) -> EitherState[Env, List[Message]]:
@@ -93,6 +92,18 @@ class PluginFunctions(Logging):
     def activate_newly_installed(self) -> EitherState[Env, List[Message]]:
         new = yield EitherState.inspect(_.inactive)
         yield self.activate_multi(new)
+
+    @do
+    def define_handlers(self, venv: Venv, channel: int) -> NvimIO[List[DefinedHandler]]:
+        name = venv.name
+        cname = camelcaseify(name)
+        rpc_handlers_fun = f'{cname}RpcHandlers'
+        handlers_spec = RpcHandlerSpec.fun(1, rpc_handlers_fun, dict())
+        handler_rpc = yield define_handler(channel, handlers_spec, name, venv.plugin_path)
+        result = yield NvimIO.call_once_defined(rpc_handlers_fun, timeout=3)
+        handler_specs = Lists.wrap(result).flat_map(RpcHandlerSpec.decode)
+        handlers = yield handler_specs.traverse(L(define_handler)(channel, _, name, venv.plugin_path), NvimIO)
+        yield NvimIO.pure(handlers.cons(handler_rpc))
 
 
 class CoreTransitions(ChromatinTransitions):
@@ -160,18 +171,19 @@ class CoreTransitions(ChromatinTransitions):
 
     @trans.multi(Activate, trans.est)
     def activate(self) -> EitherState[Env, List[Message]]:
-        return self.funcs.activate_all(self.msg.plugins)
+        return self.funcs.activate_by_names(self.msg.plugins)
 
-    @trans.unit(Activated, trans.st)
-    def activated(self) -> State[Env, None]:
+    @trans.one(Activated, trans.st)
+    @do
+    def activated(self) -> State[Env, Message]:
         self.log.debug(f'activated {self.msg.venv}')
         venv = self.msg.venv
-        cname = camelcaseify(venv.name)
-        spec = RpcHandlerSpec.cmd(1, f'{cname}SetupRpc', dict())
-        define_handler(self.vim, venv.name, spec, venv.plugin_path)
-        self.vim.cmd_sync(f'{cname}SetupRpc', verbose=True)
-        self.vim.runtime(f'chromatin/{venv.name}/*')
-        return State.modify(__.activate_venv(venv))
+        @do
+        def io() -> NvimIO[None]:
+            yield self.funcs.define_handlers(venv, self.msg.channel)
+            yield self.vim.runtime(f'chromatin/{venv.name}/*')
+        yield State.modify(__.activate_venv(venv))
+        yield State.pure(NvimIOTask(io()))
 
     @trans.multi(UpdatePlugins, trans.est)
     def update_plugins(self) -> State[Env, List[Message]]:
