@@ -10,7 +10,7 @@ from chromatin.host import PluginHost
 from chromatin.util import resources
 
 from amino.state import State, EitherState
-from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists
+from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists, Maybe, curried
 from amino.util.string import camelcaseify
 from amino.boolean import true, false
 
@@ -45,9 +45,12 @@ class PluginFunctions(Logging):
         Done = update.cata(Updated, Installed)
         def trans_result(venv: Venv, result: Future) -> Message:
             return Just((Done(venv) if result.success else Error(result.err)).pub)
+        @do
+        def install_proc(venv: Venv) -> Either[str, SubProcessSync]:
+            job = yield venv_facade.install(venv)
+            yield Right(SubProcessSync(job, curried(trans_result)(venv)))
         venv_facade = yield EitherState.inspect_f(_.venv_facade)
-        msgs = venvs / (lambda v: SubProcessSync(venv_facade.install(v), L(trans_result)(v, _)))
-        yield EitherState.pure(msgs)
+        yield EitherState.lift(venvs.traverse(install_proc, Either))
 
     @do
     def install_missing(self) -> EitherState[Env, List[Message]]:
@@ -116,19 +119,18 @@ class CoreTransitions(ChromatinTransitions):
     def funcs(self) -> PluginFunctions:
         return PluginFunctions()
 
-    @trans.multi(Start, trans.st)
-    @do
+    @trans.multi(Start)
     def stage_i(self) -> State[Env, List[Message]]:
-        init = yield State.inspect(_.want_init)
-        started = List(io(__.vars.set_p('started', True)), io(__.runtime('chromatin/plugins')))
-        msgs = started.cat_m(init.m(SetupPlugins()))
-        yield State.pure(msgs)
+        return List(io(__.vars.set_p('started', True)), io(__.runtime('chromatin/plugins')))
 
-    @trans.unit(AddPlugin, trans.st)
-    def add_plugin(self) -> State[Env, None]:
+    @trans.one(AddPlugin, trans.st, trans.m)
+    @do
+    def add_plugin(self) -> State[Env, Maybe[Message]]:
+        init = yield State.inspect(_.want_init)
         spec = self.msg.spec
         name = self.msg.options.get('name') | spec
-        return State.modify(__.add_plugin(name, spec))
+        yield State.modify(__.add_plugin(name, spec))
+        yield State.pure(init.m(SetupPlugins().at(.75)))
 
     @trans.one(ShowPlugins, trans.st)
     @do

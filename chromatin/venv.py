@@ -1,17 +1,22 @@
 from types import SimpleNamespace
+from amino import Path, List, Try
 
-from amino import Path, List, Try, Either
-from amino.util.string import ToStr
+from ribosome.record import Record, field, either_field, path_field
 
 from chromatin.plugin import VimPlugin
 
 
-class Venv(ToStr):
+class Venv(Record):
+    dir = path_field()
+    python_executable = either_field(Path, factory=Path)
+    bin_path = either_field(Path, factory=Path)
+    plugin = field(VimPlugin)
 
-    def __init__(self, dir: Path, ns: SimpleNamespace, plugin: VimPlugin) -> None:
-        self.dir = dir
-        self.ns = ns
-        self.plugin = plugin
+    @staticmethod
+    def from_ns(dir: Path, plugin: VimPlugin, context: SimpleNamespace) -> 'Venv':
+        exe = Try(lambda: context.env_exe) / Path
+        bin_path = Try(lambda: context.bin_path) / Path
+        return Venv(dir=dir, python_executable=exe, bin_path=bin_path, plugin=plugin)
 
     def _arg_desc(self) -> List[str]:
         return List(str(self.dir), str(self.plugin))
@@ -31,9 +36,5 @@ class Venv(ToStr):
     @property
     def plugin_path(self) -> Path:
         return self.site / self.name / 'nvim_plugin.py'
-
-    @property
-    def python_executable(self) -> Either[str, Path]:
-        return Try(lambda: self.ns.env_exe) / Path
 
 __all__ = ('Venv',)

@@ -7,6 +7,7 @@ from ribosome.test.integration.klk import later
 
 from chromatin.venvs import VenvFacade
 from chromatin.plugin import VimPlugin
+from chromatin.plugins.core.messages import SetupPlugins, SetupVenvs, InstallMissing, PostSetup, Installed
 
 from integration._support.rplugin_spec import RpluginSpec
 
@@ -18,7 +19,6 @@ class SetupSpec(RpluginSpec):
     '''
 
     def two_explicit(self) -> Expectation:
-        self.vim.vars.set_p('autostart', False)
         name1 = 'flagellum'
         name2 = 'cilia'
         dir = temp_dir('rplugin', 'venv')
@@ -31,16 +31,21 @@ class SetupSpec(RpluginSpec):
         self.cmd_sync(f'''Cram {path1} {{ 'name': '{name1}' }}''')
         self.cmd_sync(f'''Cram {path2} {{ 'name': '{name2}' }}''')
         self.cmd_sync('CrmSetupPlugins')
+        self.seen_message(SetupVenvs)
+        self.seen_message(InstallMissing)
+        self.seen_message(Installed)
+        self.seen_message(PostSetup)
         self.venv_existent(venvs, plugin1)
         self.package_installed(venvs, plugin1)
         self.package_installed(venvs, plugin2)
-        self.cmd('CrmActivate')
+        self.cmd_sync('CrmActivate')
         return later(self.plug_exists('Flag') & self.plug_exists('Cil'))
 
     def auto(self) -> Expectation:
+        self.vim.vars.set_p('autostart', True)
         venvs, plugin = self.setup_one('flagellum')
-        self.vim.doautocmd('VimEnter')
-        self.venv_existent(venvs, plugin)
+        self.seen_message(SetupPlugins)
+        self.venv_existent(venvs, plugin, timeout=4)
         self.package_installed(venvs, plugin)
         return later(self.plug_exists('Flag'))
 

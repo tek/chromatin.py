@@ -3,7 +3,7 @@ import shutil
 import venv  # type: ignore
 import pkg_resources
 
-from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean, Map
+from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean, Map, Try, Either, Right
 from amino.util.string import ToStr
 from amino.boolean import true, false
 
@@ -51,13 +51,13 @@ def build(dir: Path, plugin: VimPlugin) -> IO[Venv]:
     yield IO.delay(builder._setup_pip, context)
     yield IO.delay(builder.setup_scripts, context)
     yield IO.delay(builder.post_setup, context)
-    yield IO.pure(Venv(dir, context, plugin))
+    yield IO.pure(Venv.from_ns(dir, plugin, context))
 
 
 def cons_venv(dir: Path, plugin: VimPlugin) -> Venv:
     builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
     context = builder.ensure_directories(str(dir))
-    return Venv(dir, context, plugin)
+    return Venv.from_ns(dir, plugin, context)
 
 
 class PackageState(ToStr):
@@ -130,16 +130,19 @@ class VenvFacade(Logging):
     def package_installed(self, venv: Venv) -> Boolean:
         return self.package_state(venv).exists
 
-    def install(self, venv: Venv) -> Future[Result]:
+    @do
+    def install(self, venv: Venv) -> Either[str, Future[Result]]:
         self.log.debug(f'installing {venv}')
-        pip_bin = Path(venv.ns.bin_path) / 'pip'
+        bin_path = yield venv.bin_path
+        pip_bin = bin_path / 'pip'
         args = ['install', '-U', venv.req]
-        return Job(
+        job = Job(
             client=JobClient(cwd=Path.cwd(), name=f'pip install -U {venv.req}'),
             exe=str(pip_bin),
             args=args,
             loop=None,
             kw=Map(env=dict()),
         )
+        yield Right(job)
 
 __all__ = ('VenvFacade', 'VenvState', 'VenvExistent', 'VenvAbsent')
