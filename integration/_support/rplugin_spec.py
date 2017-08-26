@@ -28,8 +28,8 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
     def plug_exists(self, name: str) -> Expectation:
         return self.command_exists(f'{name}Test')
 
-    def venv_existent(self, venvs: VenvFacade, plugin: VimPlugin) -> Expectation:
-        return later(kf(venvs.check, plugin).must(have_type(VenvExistent)), intval=.5)
+    def venv_existent(self, venvs: VenvFacade, plugin: VimPlugin, timeout: float=None) -> Expectation:
+        return later(kf(venvs.check, plugin).must(have_type(VenvExistent)), timeout=timeout, intval=.5)
 
     def package_installed(self, venvs: VenvFacade, plugin: VimPlugin) -> Expectation:
         return later(

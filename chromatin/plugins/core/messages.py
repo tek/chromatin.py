@@ -13,8 +13,10 @@ Installed = message('Installed', 'venv')
 Updated = message('Updated', 'venv')
 Activate = message('Activate', varargs='plugins')
 Activated = message('Activated', 'venv', 'channel')
+AlreadyActive = message('AlreadyActive', 'venv')
 UpdatePlugins = message('UpdatePlugins', varargs='plugins')
 Reboot = message('Reboot', 'venv')
 
 __all__ = ('Start', 'AddPlugin', 'ShowPlugins', 'SetupPlugins', 'SetupVenvs', 'InstallMissing', 'AddVenv',
-           'IsInstalled', 'Installed', 'Updated', 'Activate', 'Activated', 'PostSetup', 'UpdatePlugins', 'Reboot')
+           'IsInstalled', 'Installed', 'Updated', 'Activate', 'Activated', 'PostSetup', 'UpdatePlugins', 'Reboot',
+           'AlreadyActive')

@@ -1,7 +1,7 @@
 from chromatin.state import ChromatinTransitions, ChromatinComponent
 from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, SetupVenvs, InstallMissing,
                                              AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
-                                             Updated, Reboot, Activate)
+                                             Updated, Reboot, Activate, AlreadyActive)
 from chromatin.venvs import VenvExistent
 from chromatin.env import Env
 from chromatin.venv import Venv
@@ -73,7 +73,11 @@ class PluginFunctions(Logging):
     @do
     def activate_multi(self, venvs: List[Venv]) -> EitherState[Env, List[Message]]:
         vim = yield EitherState.inspect(_.vim)
-        yield EitherState.pure(venvs / L(self.activate_venv)(vim, _) / __.value_or(Error))
+        active = yield EitherState.inspect(_.active)
+        already_active, inactive = venvs.split(active.contains)
+        aa_msgs = already_active / AlreadyActive
+        activated_msgs = inactive / L(self.activate_venv)(vim, _) / __.value_or(Error)
+        yield EitherState.pure(aa_msgs + activated_msgs)
 
     @do
     def activate_by_names(self, plugins: List[str]) -> EitherState[Env, List[Message]]:

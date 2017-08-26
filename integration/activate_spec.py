@@ -12,6 +12,7 @@ from amino import Path, Just
 from ribosome.test.integration.klk import later
 
 from chromatin.util import resources
+from chromatin.plugins.core.messages import AlreadyActive
 
 from integration._support.rplugin_spec import RpluginSpec
 
@@ -23,6 +24,7 @@ def ensure_venv(f: Callable[[RpluginSpec], Expectation]) -> Callable[[RpluginSpe
         else:
             self.setup_one(self.name, Just(self.venvs_path))
         self.cmd('CrmSetupPlugins')
+        self.check_exists()
         return f(self)
     return wrap
 
@@ -53,21 +55,23 @@ class ActivateFlagSpec(ActivateSpec):
     execute autocommand $autocmd
     load plugin config from `rtp/chromatin/flagellum` after activation $config
     update a plugin $update
+    don't start two hosts if `SetupPlugins` runs again $twice
     '''
 
     @property
     def name(self) -> str:
         return 'flagellum'
 
+    def check_exists(self) -> Expectation:
+        return later(self.plug_exists('Flag'))
+
     @ensure_venv
     def cmd_parameter(self) -> Expectation:
-        later(self.plug_exists('Flag'))
         self.vim.cmd_sync('FlagArgTest 1')
         return self._log_line(-1, be_just(end_with('success 1')))
 
     @ensure_venv
     def autocmd(self) -> Expectation:
-        later(self.plug_exists('Flag'))
         self.vim.doautocmd('VimEnter')
         return self._log_line(-1, be_just(end_with('autocmd works')))
 
@@ -80,9 +84,13 @@ class ActivateFlagSpec(ActivateSpec):
 
     @ensure_venv
     def update(self) -> Expectation:
-        later(self.plug_exists('Flag'))
         self.cmd_sync('CrmUpdate')
         return self._log_line(-1, be_just(resources.updated_plugin(self.name)))
+
+    @ensure_venv
+    def twice(self) -> Expectation:
+        self.cmd_sync('CrmActivate')
+        return self._seen_message(AlreadyActive)
 
 
 class ActivateMiscSpec(ActivateSpec):
