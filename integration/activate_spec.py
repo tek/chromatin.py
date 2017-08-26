@@ -22,7 +22,7 @@ def ensure_venv(f: Callable[[RpluginSpec], Expectation]) -> Callable[[RpluginSpe
             self.setup_venv()
         else:
             self.setup_one(self.name, Just(self.venvs_path))
-        self.cmd_sync('CrmSetupPlugins')
+        self.cmd('CrmSetupPlugins')
         return f(self)
     return wrap
 
@@ -42,7 +42,6 @@ class ActivateSpec(RpluginSpec):
         return self.venvs_path / self.name
 
     def setup_venv(self) -> None:
-        self.vim.vars.set_p('autostart', False)
         shutil.rmtree(self.venv_path, ignore_errors=True)
         self.venvs_path.mkdir(parents=True, exist_ok=True)
         venv, venvs, plugin = self.install_one(self.name, Just(self.venvs_path))

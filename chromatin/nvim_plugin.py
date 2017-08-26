@@ -20,7 +20,6 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
         super().__init__(NvimFacade(vim, 'chromatin'))
         self.initialized = False
         self.chromatin: Chromatin = None
-        self.state()
 
     @property
     def _default_plugins(self) -> List[str]:
@@ -49,7 +48,7 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
             time.sleep(.1)
         return self.chromatin is not None
 
-    @json_msg_command(AddPlugin, sync=True)
+    @json_msg_command(AddPlugin)
     def cram(self) -> None:
         pass
 
@@ -75,6 +74,6 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
 
     @neovim.autocmd('VimEnter')
     def vim_enter(self):
-        threading.Thread(target=self.stage_ii).start()
+        threading.Thread(target=self.start_plugin).start()
 
 __all__ = ('ChromatinNvimPlugin',)

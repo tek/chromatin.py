@@ -18,6 +18,10 @@ from integration._support.base import ChromatinPluginIntegrationSpec
 
 class RpluginSpec(ChromatinPluginIntegrationSpec):
 
+    def _post_start_neovim(self) -> None:
+        super()._post_start_neovim()
+        self.vim.vars.set_p('autostart', False)
+
     def command_exists(self, name: str) -> Expectation:
         return kf(self.vim.command_exists, name).true
 
@@ -45,7 +49,7 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
 
     def install_one(self, name: str, venv_dir: Maybe[Path] = Nothing) -> Tuple[VenvFacade, VimPlugin]:
         venvs, plugin = self.setup_one(name, venv_dir)
-        self.cmd_sync('CrmSetupPlugins')
+        self.cmd('CrmSetupPlugins')
         self.venv_existent(venvs, plugin)
         self.package_installed(venvs, plugin)
         venv = venvs.check(plugin).venv
@@ -53,7 +57,7 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
 
     def activate_one(self, name: str, prefix: str) -> Venv:
         venv, venvs, plugin = self.install_one(name)
-        self.cmd_sync('CrmActivate')
+        self.cmd('CrmActivate')
         later(self.plug_exists(prefix))
         return venv
 
