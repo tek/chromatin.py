@@ -17,10 +17,10 @@ pip install ribosome
 # Usage
 
 ## Declare
-After startup, **chromatin** sources the files `{runtimepath}/chromatin/plugins.vim`.
-To add a plugin, call the command `Cram` from there:
+When starting, **chromatin** sources the files `{runtimepath}/chromatin/plugins.vim`.
+To add a plugin, use the command `Cram` from there:
 
-```viml
+```
 Cram myo
 Cram /home/tek/path/to/proteome { 'name': 'proteome' }
 ```
@@ -30,14 +30,16 @@ requirements.
 
 ## Install
 
-If the variable `g:chromatin_autostart` is unset or `1`, all plugins will be installed and activated after startup.
+If the variable `g:chromatin_autostart` is unset or `1`, all plugins will be installed and activated on neovim startup
+or after they have been added.
+
 To manually trigger installation, execute `CrmSetupPlugins`.
 
 ## Activate
 
 Each plugin gets its own plugin host, allowing differing library dependency versions.
 
-In order to manually trigger loading the plugins, execute `CrmActivate [plugin_names]`.
+In order to manually trigger the activation of plugins, execute `CrmActivate [plugin_names]`.
 
 ## Update
 
@@ -45,7 +47,7 @@ The command `CrmUpdate [plugin_names]` runs `pip install --upgrade` for the spec
 
 ## Configure
 
-After a plugin has been loaded, files in `{runtimepath}/chromatin/<plugin_name>/*.vim` are sourced to allow for
+After a plugin has been loaded, files matching `{runtimepath}/chromatin/<plugin_name>/*.vim` are sourced to allow for
 post-load configuration.
 
 [ribosome]: https://github.com/tek/ribosome
