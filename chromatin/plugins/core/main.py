@@ -1,7 +1,7 @@
 from chromatin.state import ChromatinTransitions, ChromatinComponent
-from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, StageI, SetupPlugins, SetupVenvs, InstallMissing,
-                                             AddVenv, IsInstalled, Activated, StageII, PostSetup, Installed,
-                                             UpdatePlugins, Updated, Reboot, Activate)
+from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, SetupVenvs, InstallMissing,
+                                             AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
+                                             Updated, Reboot, Activate)
 from chromatin.venvs import VenvExistent
 from chromatin.env import Env
 from chromatin.venv import Venv
@@ -112,15 +112,13 @@ class CoreTransitions(ChromatinTransitions):
     def funcs(self) -> PluginFunctions:
         return PluginFunctions()
 
-    @trans.one(StageI)
-    def stage_i(self) -> Message:
-        return io(__.vars.set_p('started', True))
-
-    @trans.multi(StageII, trans.st)
+    @trans.multi(Start, trans.st)
     @do
-    def stage_ii(self) -> State[Env, List[Message]]:
+    def stage_i(self) -> State[Env, List[Message]]:
         init = yield State.inspect(_.want_init)
-        yield State.pure(List(SetupPlugins()) if init else List())
+        started = List(io(__.vars.set_p('started', True)), io(__.runtime('chromatin/plugins')))
+        msgs = started.cat_m(init.m(SetupPlugins()))
+        yield State.pure(msgs)
 
     @trans.unit(AddPlugin, trans.st)
     def add_plugin(self) -> State[Env, None]:

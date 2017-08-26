@@ -10,8 +10,7 @@ from ribosome.request import msg_command, json_msg_command
 from ribosome.nvim import NvimFacade
 
 from chromatin.main import Chromatin
-from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, StageI, SetupPlugins, StageII, UpdatePlugins,
-                                             Activate)
+from chromatin.plugins.core.messages import AddPlugin, ShowPlugins, Start, SetupPlugins, UpdatePlugins, Activate
 
 
 class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
@@ -30,7 +29,7 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
         self.chromatin = Chromatin(self.vim.proxy, plugins)
         self.chromatin.start()
         self.chromatin.wait_for_running()
-        self.chromatin.send_sync(StageI())
+        self.chromatin.send_sync(Start())
 
     def state(self) -> Chromatin:
         if self.chromatin is None and not self.initialized:
@@ -67,10 +66,6 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
     @msg_command(UpdatePlugins)
     def crm_update(self) -> None:
         pass
-
-    def stage_ii(self) -> None:
-        if self.wait_for_startup():
-            self.chromatin.send(StageII().at(0.99))
 
     @neovim.autocmd('VimEnter')
     def vim_enter(self):
