@@ -9,9 +9,22 @@ from ribosome.test.integration.klk import later
 
 from chromatin.venvs import VenvFacade
 from chromatin.plugin import VimPlugin
-from chromatin.plugins.core.messages import SetupPlugins, SetupVenvs, InstallMissing, PostSetup, Installed
+from chromatin.plugins.core.messages import SetupPlugins, SetupVenvs, PostSetup, AddVenv, InstallMissing, Installed
 
 from integration._support.rplugin_spec import RpluginSpec
+
+name1 = 'flagellum'
+name2 = 'cilia'
+path1 = fixture_path('rplugin', name1)
+path2 = fixture_path('rplugin', name2)
+
+plugin1 = VimPlugin(name=name1, spec=name1)
+plugin2 = VimPlugin(name=name2, spec=name2)
+
+plugins = List(
+    dict(name=name1, spec=str(path1)),
+    dict(name=name2, spec=str(path2)),
+)
 
 
 class TwoExplicitSpec(RpluginSpec):
@@ -21,22 +34,9 @@ class TwoExplicitSpec(RpluginSpec):
     bootstrap and activate, explicit initialization $bootstrap
     '''
 
-    name1 = 'flagellum'
-    name2 = 'cilia'
-    path1 = fixture_path('rplugin', name1)
-    path2 = fixture_path('rplugin', name2)
-
     @property
     def dir(self) -> Path:
         return temp_dir('rplugin', 'venv')
-
-    @property
-    def plugin1(self) -> VimPlugin:
-        return VimPlugin(name=self.name1, spec=self.name1)
-
-    @property
-    def plugin2(self) -> VimPlugin:
-        return VimPlugin(name=self.name2, spec=self.name2)
 
     @property
     def venvs(self) -> VenvFacade:
@@ -44,10 +44,6 @@ class TwoExplicitSpec(RpluginSpec):
 
     def _pre_start(self) -> None:
         super()._pre_start()
-        plugins = List(
-            dict(name=self.name1, spec=str(self.path1)),
-            dict(name=self.name2, spec=str(self.path2)),
-        )
         self.vim.vars.set_p('rplugins', plugins)
         self.vim.vars.set_p('venv_dir', str(self.dir))
 
@@ -59,25 +55,25 @@ class TwoExplicitSpec(RpluginSpec):
         self.seen_message(SetupVenvs)
         self._wait(5)
         print(self.message_log())
-        return self.venv_existent(self.venvs, self.plugin1) & self.venv_existent(self.venvs, self.plugin2)
+        return self.venv_existent(self.venvs, plugin1) & self.venv_existent(self.venvs, plugin2)
 
     def bootstrap(self) -> Expectation:
         self.cmd_sync('CrmSetupPlugins')
         self.seen_message(SetupVenvs)
-        self.venv_existent(self.venvs, self.plugin1)
+        self.venv_existent(self.venvs, plugin1)
         self.seen_message(InstallMissing)
-        self.package_installed(self.venvs, self.plugin1)
-        self.package_installed(self.venvs, self.plugin2)
+        self.package_installed(self.venvs, plugin1)
+        self.package_installed(self.venvs, plugin2)
         self.seen_message(PostSetup)
         self.cmd_sync('CrmActivate')
         return later(self.plug_exists('Flag') & self.plug_exists('Cil'), timeout=2)
 
 
-class AutostartSpec(RpluginSpec):
-    '''automatic initialization $auto
+class AutostartAfterAddSpec(RpluginSpec):
+    '''automatic initialization when using `Cram` $auto_cram
     '''
 
-    def auto(self) -> Expectation:
+    def auto_cram(self) -> Expectation:
         self.vim.vars.set_p('autostart', True)
         venvs, plugin = self.setup_one('flagellum')
         self.seen_message(SetupPlugins)
@@ -85,4 +81,31 @@ class AutostartSpec(RpluginSpec):
         self.package_installed(venvs, plugin)
         return later(self.plug_exists('Flag'))
 
-__all__ = ('TwoExplicitSpec', 'AutostartSpec')
+
+class AutostartAtBootSpec(RpluginSpec):
+    '''automatic initialization at vim startup $startup
+    '''
+
+    @property
+    def dir(self) -> Path:
+        return temp_dir('rplugin', 'venv')
+
+    @property
+    def venvs(self) -> VenvFacade:
+        return VenvFacade(self.dir)
+
+    def _pre_start(self) -> None:
+        super()._pre_start()
+        self.vim.vars.set_p('rplugins', plugins.take(1))
+        self.vim.vars.set_p('venv_dir', str(self.dir))
+        self.vim.vars.set_p('autostart', True)
+
+    def startup(self) -> Expectation:
+        self.seen_message(SetupPlugins)
+        self.seen_message(SetupVenvs)
+        self.seen_message(AddVenv)
+        self.seen_message(InstallMissing)
+        self.seen_message(Installed)
+        return later(self.plug_exists('Flag'))
+
+__all__ = ('TwoExplicitSpec', 'AutostartAfterAddSpec')

@@ -18,8 +18,8 @@ from integration._support.base import ChromatinPluginIntegrationSpec
 
 class RpluginSpec(ChromatinPluginIntegrationSpec):
 
-    def _post_start_neovim(self) -> None:
-        super()._post_start_neovim()
+    def _pre_start(self) -> None:
+        super()._pre_start()
         self.vim.vars.set_p('autostart', False)
 
     def command_exists(self, name: str) -> Expectation:

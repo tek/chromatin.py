@@ -116,13 +116,17 @@ class PluginFunctions(Logging):
     @do
     def add_plugins(self, plugins: List[VimPlugin]) -> EitherState[Env, Maybe[Message]]:
         yield EitherState.modify(__.add_plugins(plugins))
-        yield EitherState.pure(Nothing)
+        yield EitherState.pure(Just(SetupPlugins()))
 
     @do
     def read_conf(self) -> EitherState[Env, Maybe[Message]]:
         vim = yield EitherState.inspect(_.vim)
         plugins = vim.vars.pl('rplugins').flat_map(__.traverse(VimPlugin.from_config, Either))
-        yield plugins.map(self.add_plugins).value_or(lambda a: EitherState.pure(Just(Error(a))))
+        yield (
+            EitherState.pure(Nothing)
+            if plugins.exists(_.empty) else
+            plugins.map(self.add_plugins).value_or(lambda a: EitherState.pure(Just(Error(a))))
+        )
 
 
 class CoreTransitions(ChromatinTransitions):
