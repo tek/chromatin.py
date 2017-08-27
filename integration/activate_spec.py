@@ -17,18 +17,6 @@ from chromatin.plugins.core.messages import AlreadyActive
 from integration._support.rplugin_spec import RpluginSpec
 
 
-def ensure_venv(f: Callable[[RpluginSpec], Expectation]) -> Callable[[RpluginSpec], Expectation]:
-    def wrap(self: RpluginSpec) -> Expectation:
-        if not self.venv_path.exists():
-            self.setup_venv()
-        else:
-            self.setup_one(self.name, Just(self.venvs_path))
-        self.cmd('CrmSetupPlugins')
-        self.check_exists()
-        return f(self)
-    return wrap
-
-
 class ActivateSpec(RpluginSpec):
 
     @abc.abstractproperty
@@ -47,6 +35,18 @@ class ActivateSpec(RpluginSpec):
         shutil.rmtree(self.venv_path, ignore_errors=True)
         self.venvs_path.mkdir(parents=True, exist_ok=True)
         venv, venvs, plugin = self.install_one(self.name, Just(self.venvs_path))
+
+
+def ensure_venv(f: Callable[[ActivateSpec], Expectation]) -> Callable[[ActivateSpec], Expectation]:
+    def wrap(self: ActivateSpec) -> Expectation:
+        if not self.venv_path.exists():
+            self.setup_venv()
+        else:
+            self.setup_one(self.name, Just(self.venvs_path))
+        self.cmd('CrmSetupPlugins')
+        self.check_exists()
+        return f(self)
+    return wrap
 
 
 class ActivateFlagSpec(ActivateSpec):
@@ -90,7 +90,7 @@ class ActivateFlagSpec(ActivateSpec):
     @ensure_venv
     def twice(self) -> Expectation:
         self.cmd_sync('CrmActivate')
-        return self._seen_message(AlreadyActive)
+        return self.seen_message(AlreadyActive)
 
 
 class ActivateMiscSpec(ActivateSpec):

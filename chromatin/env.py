@@ -1,10 +1,10 @@
 from typing import Any
 
 from ribosome.data import Data
-from ribosome.record import dfield, list_field, map_field, field
+from ribosome.record import dfield, list_field, map_field, field, maybe_field
 from ribosome.nvim import NvimFacade, AsyncVimProxy
 
-from amino import List, _, Either, Path, Try, env, Right, do, Boolean
+from amino import List, _, Either, Path, Try, env, Right, do, Boolean, Map
 from amino.boolean import true
 
 from chromatin.logging import Logging
@@ -22,8 +22,8 @@ def _default_venv_dir() -> Either[str, Path]:
     yield Right(venv_dir)
 
 
-class Env(Data, Logging):
-    vim = field((NvimFacade, AsyncVimProxy))
+class Env(Logging, Data):
+    vim_facade = maybe_field((NvimFacade, AsyncVimProxy))
     initialized = dfield(False)
     plugins = list_field(VimPlugin)
     venvs = map_field()
@@ -32,6 +32,9 @@ class Env(Data, Logging):
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
         return self.append1.plugins(VimPlugin(name=name, spec=spec))
+
+    def add_plugins(self, plugins: List[VimPlugin]) -> 'Env':
+        return self.append.plugins(plugins)
 
     @property
     def show_plugins(self) -> List[str]:
@@ -79,5 +82,12 @@ class Env(Data, Logging):
 
     def installed_by_name(self, names: List[str]) -> List[Venv]:
         return self.installed.filter(lambda v: v.name in names)
+
+    def to_map(self) -> Map[str, Any]:
+        return super().to_map() - 'vim_facade'
+
+    @property
+    def vim(self) -> NvimFacade:
+        return self.vim_facade | (lambda: NvimFacade(None, 'no vim was set in `Env`'))
 
 __all__ = ('Env',)

@@ -6,7 +6,7 @@ import neovim
 from amino import List
 
 from ribosome import NvimStatePlugin
-from ribosome.request import msg_command, json_msg_command
+from ribosome.request import msg_command, json_msg_command, function
 from ribosome.nvim import NvimFacade
 
 from chromatin.main import Chromatin

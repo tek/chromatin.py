@@ -1,16 +1,17 @@
 from chromatin.state import ChromatinTransitions, ChromatinComponent
 from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, SetupVenvs, InstallMissing,
                                              AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
-                                             Updated, Reboot, Activate, AlreadyActive)
+                                             Updated, Reboot, Activate, AlreadyActive, ReadConf)
 from chromatin.venvs import VenvExistent
 from chromatin.env import Env
 from chromatin.venv import Venv
 from chromatin.logging import Logging
 from chromatin.host import PluginHost
 from chromatin.util import resources
+from chromatin.plugin import VimPlugin
 
 from amino.state import State, EitherState
-from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists, Maybe, curried
+from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists, Maybe, curried, Nothing
 from amino.util.string import camelcaseify
 from amino.boolean import true, false
 
@@ -112,6 +113,17 @@ class PluginFunctions(Logging):
         handlers = yield handler_specs.traverse(L(define_handler)(channel, _, name, venv.plugin_path), NvimIO)
         yield NvimIO.pure(handlers.cons(handler_rpc))
 
+    @do
+    def add_plugins(self, plugins: List[VimPlugin]) -> EitherState[Env, Maybe[Message]]:
+        yield EitherState.modify(__.add_plugins(plugins))
+        yield EitherState.pure(Nothing)
+
+    @do
+    def read_conf(self) -> EitherState[Env, Maybe[Message]]:
+        vim = yield EitherState.inspect(_.vim)
+        plugins = vim.vars.pl('rplugins').flat_map(__.traverse(VimPlugin.from_config, Either))
+        yield plugins.map(self.add_plugins).value_or(lambda a: EitherState.pure(Just(Error(a))))
+
 
 class CoreTransitions(ChromatinTransitions):
 
@@ -121,7 +133,11 @@ class CoreTransitions(ChromatinTransitions):
 
     @trans.multi(Start)
     def stage_i(self) -> State[Env, List[Message]]:
-        return List(io(__.vars.set_p('started', True)), io(__.runtime('chromatin/plugins')))
+        return List(io(__.vars.set_p('started', True)), io(__.vars.ensure_p('rplugins', [])), ReadConf().at(0.6))
+
+    @trans.one(ReadConf, trans.est, trans.m)
+    def read_conf(self) -> EitherState[Env, Maybe[Message]]:
+        return self.funcs.read_conf()
 
     @trans.one(AddPlugin, trans.st, trans.m)
     @do
@@ -192,6 +208,10 @@ class CoreTransitions(ChromatinTransitions):
     @trans.multi(UpdatePlugins, trans.est)
     def update_plugins(self) -> State[Env, List[Message]]:
         return self.funcs.update_plugins(self.msg.plugins)
+
+    @trans.unit(AlreadyActive)
+    def already_active(self) -> None:
+        pass
 
 
 class Plugin(ChromatinComponent):

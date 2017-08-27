@@ -1,6 +1,7 @@
 from ribosome.machine import message, json_message
 
 Start = message('Start')
+ReadConf = message('ReadConf')
 AddPlugin = json_message('AddPlugin', 'spec')
 ShowPlugins = message('ShowPlugins')
 SetupPlugins = message('SetupPlugins')
@@ -17,6 +18,6 @@ AlreadyActive = message('AlreadyActive', 'venv')
 UpdatePlugins = message('UpdatePlugins', varargs='plugins')
 Reboot = message('Reboot', 'venv')
 
-__all__ = ('Start', 'AddPlugin', 'ShowPlugins', 'SetupPlugins', 'SetupVenvs', 'InstallMissing', 'AddVenv',
-           'IsInstalled', 'Installed', 'Updated', 'Activate', 'Activated', 'PostSetup', 'UpdatePlugins', 'Reboot',
-           'AlreadyActive')
+__all__ = ('ReadConf', 'Start', 'AddPlugin', 'ShowPlugins', 'SetupPlugins', 'SetupVenvs', 'InstallMissing',
+           'AddVenv', 'IsInstalled', 'Installed', 'Updated', 'Activate', 'Activated', 'PostSetup', 'UpdatePlugins',
+           'Reboot', 'AlreadyActive')

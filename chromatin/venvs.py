@@ -3,7 +3,7 @@ import shutil
 import venv  # type: ignore
 import pkg_resources
 
-from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean, Map, Try, Either, Right
+from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean, Map, Either, Right
 from amino.util.string import ToStr
 from amino.boolean import true, false
 
@@ -135,7 +135,7 @@ class VenvFacade(Logging):
         self.log.debug(f'installing {venv}')
         bin_path = yield venv.bin_path
         pip_bin = bin_path / 'pip'
-        args = ['install', '-U', venv.req]
+        args = ['install', '-U', '--no-cache', venv.req]
         job = Job(
             client=JobClient(cwd=Path.cwd(), name=f'pip install -U {venv.req}'),
             exe=str(pip_bin),

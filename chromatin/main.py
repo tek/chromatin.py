@@ -1,4 +1,4 @@
-from amino import List
+from amino import List, Just
 
 from ribosome import NvimFacade
 from ribosome.machine.state import UnloopedRootMachine
@@ -16,7 +16,8 @@ class Chromatin(UnloopedRootMachine, Logging):
 
     @property
     def init(self):
-        return Env(vim=self.vim)
+        return Env(vim_facade=Just(self.vim))
+
     @property
     def title(self):
         return 'chromatin'

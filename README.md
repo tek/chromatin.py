@@ -17,15 +17,23 @@ pip install ribosome
 # Usage
 
 ## Declare
-When starting, **chromatin** sources the files `{runtimepath}/chromatin/plugins.vim`.
-To add a plugin, use the command `Cram` from there:
+When starting, **chromatin** reads plugin configuration from `g:chromating_rplugins`:
+
+```viml
+let g:chromatin_rplugins = [
+  \ {'name': 'myo' },
+  \ { 'name': 'proteome', 'spec': '/home/tek/path/to/proteome' },
+  \ ]
+```
+
+To add a plugin at runtime, use the command `Cram`:
 
 ```
 Cram myo
 Cram /home/tek/path/to/proteome { 'name': 'proteome' }
 ```
 
-Any string that `pip` can understand will work, but the name has to be supplied in the options for nontrivial
+Any string that `pip` can understand will work as a spec, but the name has to be supplied in the options for nontrivial
 requirements.
 
 ## Install
