@@ -116,7 +116,8 @@ class PluginFunctions(Logging):
     @do
     def add_plugins(self, plugins: List[VimPlugin]) -> EitherState[Env, Maybe[Message]]:
         yield EitherState.modify(__.add_plugins(plugins))
-        yield EitherState.pure(Just(SetupPlugins()))
+        init = yield EitherState.inspect(_.want_init)
+        yield EitherState.pure(init.m(SetupPlugins()))
 
     @do
     def read_conf(self) -> EitherState[Env, Maybe[Message]]:
