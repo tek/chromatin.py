@@ -106,4 +106,4 @@ class AutostartAtBootSpec(RpluginSpec):
         self.seen_message(Installed)
         return later(self.plug_exists('Flag'))
 
-__all__ = ('TwoExplicitSpec', 'AutostartAfterAddSpec')
+__all__ = ('TwoExplicitSpec', 'AutostartAfterAddSpec', 'AutostartAtBootSpec')
