@@ -1,10 +1,11 @@
 from chromatin.state import ChromatinTransitions, ChromatinComponent
 from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, SetupVenvs, InstallMissing,
                                              AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
-                                             Updated, Reboot, Activate, AlreadyActive, ReadConf)
+                                             Updated, Reboot, Activate, AlreadyActive, ReadConf, Deactivate,
+                                             Deactivated, DefinedHandlers)
 from chromatin.venvs import VenvExistent
 from chromatin.env import Env
-from chromatin.venv import Venv
+from chromatin.venv import Venv, ActiveVenv
 from chromatin.logging import Logging
 from chromatin.host import PluginHost
 from chromatin.util import resources
@@ -14,13 +15,14 @@ from amino.state import State, EitherState
 from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists, Maybe, curried, Nothing
 from amino.util.string import camelcaseify
 from amino.boolean import true, false
+from amino.list import Nil
 
 from ribosome.machine import Message
 from ribosome.machine.base import io, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
 from ribosome.nvim import NvimFacade, NvimIO
-from ribosome.machine.messages import Info, NvimIOTask
+from ribosome.machine.messages import Info, RunNvimIO
 from ribosome.rpc import define_handler, RpcHandlerSpec, DefinedHandler
 
 
@@ -71,13 +73,13 @@ class PluginFunctions(Logging):
     @do
     def activate_venv(self, vim: NvimFacade, venv: Venv) -> Either[str, Activated]:
         host = PluginHost(vim)
-        channel = yield host.start(venv)
-        yield Right(Activated(venv, channel))
+        channel, pid = yield host.start(venv)
+        yield Right(Activated(ActiveVenv(venv=venv, channel=channel, pid=pid)))
 
     @do
     def activate_multi(self, venvs: List[Venv]) -> EitherState[Env, List[Message]]:
         vim = yield EitherState.inspect(_.vim)
-        active = yield EitherState.inspect(_.active)
+        active = yield EitherState.inspect(_.active_venvs)
         already_active, inactive = venvs.split(active.contains)
         aa_msgs = already_active / AlreadyActive
         activated_msgs = inactive / L(self.activate_venv)(vim, _) / __.value_or(Error)
@@ -93,6 +95,30 @@ class PluginFunctions(Logging):
             self.activate_multi(venvs)
         )
 
+    def deactivate_venv(self, venv: ActiveVenv) -> State[Env, RunNvimIO]:
+        def undef(spec: RpcHandlerSpec) -> NvimIO[str]:
+            return NvimIO.cmd(spec.undef_cmdline, verbose=True)
+        @do
+        def run(env: Env) -> NvimIO[List[Deactivated]]:
+            handlers = (env.handlers_for(venv.name) | Nil) / _.spec
+            yield NvimIO.call('jobstop', venv.channel)
+            yield handlers.traverse(undef, NvimIO)
+            yield NvimIO.pure(List(Deactivated(venv)))
+        return State.inspect(run) / RunNvimIO
+
+    def deactivate_multi(self, venvs: List[ActiveVenv]) -> State[Env, List[RunNvimIO]]:
+        return venvs.traverse(self.deactivate_venv, State)
+
+    @do
+    def deactivate_by_names(self, plugins: List[str]) -> State[Env, List[Message]]:
+        getter = _.active if plugins.empty else __.active_by_name(plugins)
+        venvs = yield State.inspect(getter)
+        yield (
+            State.pure(List(Error(resources.no_plugins_match_for_deactivation(plugins))))
+            if venvs.empty else
+            self.deactivate_multi(venvs)
+        )
+
     def activate_all(self) -> EitherState[Env, List[Message]]:
         return self.activate_by_names(List())
 
@@ -102,8 +128,10 @@ class PluginFunctions(Logging):
         yield self.activate_multi(new)
 
     @do
-    def define_handlers(self, venv: Venv, channel: int) -> NvimIO[List[DefinedHandler]]:
+    def define_handlers(self, active_venv: ActiveVenv) -> NvimIO[List[DefinedHandler]]:
+        venv = active_venv.venv
         name = venv.name
+        channel = active_venv.channel
         cname = camelcaseify(name)
         rpc_handlers_fun = f'{cname}RpcHandlers'
         handlers_spec = RpcHandlerSpec.fun(1, rpc_handlers_fun, dict())
@@ -198,17 +226,27 @@ class CoreTransitions(ChromatinTransitions):
     def activate(self) -> EitherState[Env, List[Message]]:
         return self.funcs.activate_by_names(self.msg.plugins)
 
-    @trans.one(Activated, trans.st)
+    @trans.multi(Deactivate, trans.st)
+    def deactivate(self) -> State[Env, List[Message]]:
+        return self.funcs.deactivate_by_names(self.msg.plugins)
+
+    @trans.one(Activated, trans.st, trans.nio)
     @do
-    def activated(self) -> State[Env, Message]:
+    def activated(self) -> State[Env, NvimIO[Message]]:
         self.log.debug(f'activated {self.msg.venv}')
-        venv = self.msg.venv
+        active_venv = self.msg.venv
+        venv = active_venv.venv
         @do
-        def io() -> NvimIO[None]:
-            yield self.funcs.define_handlers(venv, self.msg.channel)
+        def io() -> NvimIO[DefinedHandlers]:
+            handlers = yield self.funcs.define_handlers(active_venv)
             yield self.vim.runtime(f'chromatin/{venv.name}/*')
-        yield State.modify(__.activate_venv(venv))
-        yield State.pure(NvimIOTask(io()))
+            yield NvimIO.pure(DefinedHandlers(venv, handlers))
+        yield State.modify(__.activate_venv(active_venv))
+        yield State.pure(io())
+
+    @trans.unit(DefinedHandlers, trans.st)
+    def defined_handlers(self) -> State[Env, None]:
+        return State.modify(__.add_handlers(self.msg.venv, self.msg.handlers))
 
     @trans.multi(UpdatePlugins, trans.est)
     def update_plugins(self) -> State[Env, List[Message]]:

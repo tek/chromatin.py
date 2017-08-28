@@ -53,8 +53,6 @@ class TwoExplicitSpec(RpluginSpec):
     def setup_venvs(self) -> Expectation:
         self.cmd_sync('CrmPlug core setup_venvs')
         self.seen_message(SetupVenvs)
-        self._wait(5)
-        print(self.message_log())
         return self.venv_existent(self.venvs, plugin1) & self.venv_existent(self.venvs, plugin2)
 
     def bootstrap(self) -> Expectation:

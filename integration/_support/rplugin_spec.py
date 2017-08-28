@@ -25,6 +25,9 @@ class RpluginSpec(ChromatinPluginIntegrationSpec):
     def command_exists(self, name: str) -> Expectation:
         return kf(self.vim.command_exists, name).true
 
+    def command_exists_not(self, name: str) -> Expectation:
+        return kf(self.vim.command_exists, name).false
+
     def plug_exists(self, name: str) -> Expectation:
         return self.command_exists(f'{name}Test')
 

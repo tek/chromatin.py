@@ -1,7 +1,9 @@
 from types import SimpleNamespace
+from typing import Any
+
 from amino import Path, List, Try
 
-from ribosome.record import Record, field, either_field, path_field
+from ribosome.record import Record, field, either_field, path_field, int_field
 
 from chromatin.plugin import VimPlugin
 
@@ -37,4 +39,22 @@ class Venv(Record):
     def plugin_path(self) -> Path:
         return self.site / self.name / 'nvim_plugin.py'
 
-__all__ = ('Venv',)
+
+class ActiveVenv(Record):
+    venv = field(Venv)
+    channel = int_field()
+    pid = either_field(int)
+
+    @property
+    def plugin(self) -> VimPlugin:
+        return self.venv.plugin
+
+    @property
+    def name(self) -> str:
+        return self.venv.name
+
+    @property
+    def _str_extra(self) -> List[Any]:
+        return List(self.venv, self.channel) + self.pid.to_list
+
+__all__ = ('Venv', 'ActiveVenv')

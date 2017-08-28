@@ -6,11 +6,12 @@ import neovim
 from amino import List
 
 from ribosome import NvimStatePlugin
-from ribosome.request import msg_command, json_msg_command, function
+from ribosome.request import msg_command, json_msg_command
 from ribosome.nvim import NvimFacade
 
 from chromatin.main import Chromatin
-from chromatin.plugins.core.messages import AddPlugin, ShowPlugins, Start, SetupPlugins, UpdatePlugins, Activate
+from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, UpdatePlugins, Activate,
+                                             Deactivate)
 
 
 class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
@@ -61,6 +62,10 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
 
     @msg_command(Activate)
     def crm_activate(self) -> None:
+        pass
+
+    @msg_command(Deactivate)
+    def crm_deactivate(self) -> None:
         pass
 
     @msg_command(UpdatePlugins)

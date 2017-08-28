@@ -13,11 +13,14 @@ IsInstalled = message('Installed', 'venv')
 Installed = message('Installed', 'venv')
 Updated = message('Updated', 'venv')
 Activate = message('Activate', varargs='plugins')
-Activated = message('Activated', 'venv', 'channel')
+Deactivate = message('Deactivate', varargs='plugins')
+Activated = message('Activated', 'venv')
+Deactivated = message('Deactivated', 'venv')
 AlreadyActive = message('AlreadyActive', 'venv')
 UpdatePlugins = message('UpdatePlugins', varargs='plugins')
 Reboot = message('Reboot', 'venv')
+DefinedHandlers = message('DefinedHandlers', 'venv', 'handlers')
 
 __all__ = ('ReadConf', 'Start', 'AddPlugin', 'ShowPlugins', 'SetupPlugins', 'SetupVenvs', 'InstallMissing',
-           'AddVenv', 'IsInstalled', 'Installed', 'Updated', 'Activate', 'Activated', 'PostSetup', 'UpdatePlugins',
-           'Reboot', 'AlreadyActive')
+           'AddVenv', 'IsInstalled', 'Installed', 'Updated', 'Activate', 'Deactivate', 'Activated', 'Deactivated',
+           'PostSetup', 'AlreadyActive', 'UpdatePlugins', 'Reboot', 'DefinedHandlers')

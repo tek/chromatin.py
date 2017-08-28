@@ -1,15 +1,16 @@
 from typing import Any
 
 from ribosome.data import Data
-from ribosome.record import dfield, list_field, map_field, field, maybe_field
+from ribosome.record import dfield, list_field, map_field, maybe_field
 from ribosome.nvim import NvimFacade, AsyncVimProxy
+from ribosome.rpc import DefinedHandler
 
 from amino import List, _, Either, Path, Try, env, Right, do, Boolean, Map
 from amino.boolean import true
 
 from chromatin.logging import Logging
 from chromatin.plugin import VimPlugin
-from chromatin.venv import Venv
+from chromatin.venv import Venv, ActiveVenv
 from chromatin.venvs import VenvFacade
 from chromatin.util.resources import xdg_cache_home_env_var, create_venv_dir_error
 
@@ -28,7 +29,8 @@ class Env(Logging, Data):
     plugins = list_field(VimPlugin)
     venvs = map_field()
     installed = list_field(Venv)
-    active = list_field(Venv)
+    active = list_field(ActiveVenv)
+    handlers = map_field()
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
         return self.append1.plugins(VimPlugin(name=name, spec=spec))
@@ -43,7 +45,7 @@ class Env(Logging, Data):
         return self.plugins.map(format).cons('Configured plugins:')
 
     def add_venv(self, venv: Venv) -> 'Env':
-        return self.modder.venvs(_ + (venv.plugin, venv))
+        return self.modder.venvs(_ + (venv.name, venv))
 
     def add_installed(self, venv: Venv) -> 'Env':
         return self.append1.installed(venv)
@@ -74,10 +76,14 @@ class Env(Logging, Data):
         return self.vim.vars.pb('autostart') | true
 
     @property
-    def inactive(self) -> List[Venv]:
-        return self.installed.remove_all(self.active)
+    def active_venvs(self) -> List[Venv]:
+        return self.active / _.venv
 
-    def activate_venv(self, venv: Venv) -> 'Env':
+    @property
+    def inactive(self) -> List[ActiveVenv]:
+        return self.installed.remove_all(self.active_venvs)
+
+    def activate_venv(self, venv: ActiveVenv) -> 'Env':
         return self.append1.active(venv)
 
     def installed_by_name(self, names: List[str]) -> List[Venv]:
@@ -89,5 +95,11 @@ class Env(Logging, Data):
     @property
     def vim(self) -> NvimFacade:
         return self.vim_facade | (lambda: NvimFacade(None, 'no vim was set in `Env`'))
+
+    def add_handlers(self, venv: Venv, handlers: List[DefinedHandler]) -> 'Env':
+        return self.modder.handlers(_ + (venv.name, handlers))
+
+    def handlers_for(self, plugin: str) -> Either[str, List[DefinedHandler]]:
+        return self.handlers.lift(plugin).to_either(f'no handlers defined for {plugin}')
 
 __all__ = ('Env',)

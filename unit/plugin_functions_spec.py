@@ -18,7 +18,6 @@ env = Env(vim_facade=Just(vim))
 class PluginFunctionsSpec:
     '''
     read config from vim variables $read_conf
-    test $test
     '''
 
     @property

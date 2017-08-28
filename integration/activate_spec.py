@@ -2,17 +2,19 @@ import abc
 import shutil
 from typing import Callable
 
-from kallikrein import Expectation
+from kallikrein import Expectation, kf
 from kallikrein.matchers.maybe import be_just
 from kallikrein.matchers.end_with import end_with
+from kallikrein.matchers.comparison import not_equal, greater
+from kallikrein.matchers.either import be_right
 
 from amino.test.path import base_dir
-from amino import Path, Just
+from amino import Path, Just, _, L
 
 from ribosome.test.integration.klk import later
 
 from chromatin.util import resources
-from chromatin.plugins.core.messages import AlreadyActive
+from chromatin.plugins.core.messages import AlreadyActive, Deactivated, Deactivate, Activated
 
 from integration._support.rplugin_spec import RpluginSpec
 
@@ -56,6 +58,7 @@ class ActivateFlagSpec(ActivateSpec):
     load plugin config from `rtp/chromatin/flagellum` after activation $config
     update a plugin $update
     don't start two hosts if `SetupPlugins` runs again $twice
+    deactivate a plugin $deactivate
     '''
 
     @property
@@ -91,6 +94,20 @@ class ActivateFlagSpec(ActivateSpec):
     def twice(self) -> Expectation:
         self.cmd_sync('CrmActivate')
         return self.seen_message(AlreadyActive)
+
+    @ensure_venv
+    def deactivate(self) -> Expectation:
+        self.seen_message(Activated)
+        plug_channel = lambda: self.state.active.head / _.channel | -1
+        later(kf(plug_channel).must(not_equal(-1)))
+        channel = plug_channel()
+        pid = L(self.vim.call)('jobpid', channel)
+        later(kf(pid).must(be_right(greater(0))))
+        self.cmd_sync('CrmDeactivate')
+        self.seen_message(Deactivate)
+        self.seen_message(Deactivated)
+        self.command_exists_not('FlagTest')
+        return kf(pid).must(be_right(0))
 
 
 class ActivateMiscSpec(ActivateSpec):
