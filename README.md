@@ -53,6 +53,13 @@ In order to manually trigger the activation of plugins, execute `CrmActivate [pl
 
 The command `CrmUpdate [plugin_names]` runs `pip install --upgrade` for the specified or all plugins.
 
+## Deactivate
+
+Plugins hosts can be shut down with the command `CrmDeactivate [plugins]`, removing all request handlers. The command
+`CrmReboot [plugins]` combines deactivating and reactivating plugins, allowing plugins to be updated at runtime.
+
+By default, plugins are rebooted after an update unless the variable `g:chromatin_autoreboot` is set to `0`.
+
 ## Configure
 
 After a plugin has been loaded, files matching `{runtimepath}/chromatin/<plugin_name>/*.vim` are sourced to allow for
