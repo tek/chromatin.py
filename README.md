@@ -4,7 +4,7 @@ This **neovim** python remote plugin provides management for plugins written wit
 **pypi**.
 
 Each plugin is installed with `pip` into a separate virtualenv and loaded automatically, without the need for
-`UpdateRemotePlugins`.
+`UpdateRemotePlugins`, allowing runtime reloading of the complete plugin package.
 
 # Install
 
