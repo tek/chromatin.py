@@ -1,4 +1,4 @@
-from amino import List, Just
+from amino import List, Just, Maybe
 
 from ribosome import NvimFacade
 from ribosome.machine.state import UnloopedRootMachine
@@ -21,6 +21,5 @@ class Chromatin(UnloopedRootMachine, Logging):
     @property
     def title(self):
         return 'chromatin'
-
 
 __all__ = ('Chromatin',)

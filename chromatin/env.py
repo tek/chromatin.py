@@ -1,16 +1,15 @@
 from typing import Any
-
 from ribosome.data import Data
 from ribosome.record import dfield, list_field, map_field, maybe_field
 from ribosome.nvim import NvimFacade, AsyncVimProxy
 from ribosome.rpc import DefinedHandler
 
-from amino import List, _, Either, Path, Try, env, Right, do, Boolean, Map
+from amino import List, _, Either, Path, Try, env, Right, do, Boolean, Map, __
 from amino.boolean import true
 
 from chromatin.logging import Logging
-from chromatin.plugin import VimPlugin
-from chromatin.venv import Venv, ActiveVenv
+from chromatin.plugin import RpluginSpec
+from chromatin.venv import Venv, ActiveVenv, PluginVenv
 from chromatin.venvs import VenvFacade
 from chromatin.util.resources import xdg_cache_home_env_var, create_venv_dir_error
 
@@ -26,21 +25,21 @@ def _default_venv_dir() -> Either[str, Path]:
 class Env(Logging, Data):
     vim_facade = maybe_field((NvimFacade, AsyncVimProxy))
     initialized = dfield(False)
-    plugins = list_field(VimPlugin)
+    plugins = list_field(RpluginSpec)
     venvs = map_field()
     installed = list_field(Venv)
     active = list_field(ActiveVenv)
     handlers = map_field()
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
-        return self.append1.plugins(VimPlugin(name=name, spec=spec))
+        return self.append1.plugins(RpluginSpec(name=name, spec=spec))
 
-    def add_plugins(self, plugins: List[VimPlugin]) -> 'Env':
+    def add_plugins(self, plugins: List[RpluginSpec]) -> 'Env':
         return self.append.plugins(plugins)
 
     @property
     def show_plugins(self) -> List[str]:
-        def format(plug: VimPlugin) -> str:
+        def format(plug: RpluginSpec) -> str:
             return plug.spec
         return self.plugins.map(format).cons('Configured plugins:')
 
@@ -49,6 +48,14 @@ class Env(Logging, Data):
 
     def add_installed(self, venv: Venv) -> 'Env':
         return self.append1.installed(venv)
+
+    def plugin_by_name(self, name: str) -> Either[str, RpluginSpec]:
+        return self.plugins.find(lambda a: a.name == name)
+
+    @do
+    def plugin_venv(self, venv: Venv) -> Either[str, PluginVenv]:
+        plugin = yield self.plugin_by_name(venv.name)
+        yield Right(PluginVenv(venv=venv, plugin=plugin))
 
     def missing_in(self, venvs: VenvFacade) -> List[Venv]:
         return self.venvs.v.filter_not(venvs.package_installed)
@@ -86,8 +93,14 @@ class Env(Logging, Data):
     def activate_venv(self, venv: ActiveVenv) -> 'Env':
         return self.append1.active(venv)
 
+    def deactivate_venv(self, venv: ActiveVenv) -> 'Env':
+        return self.modder.active(__.without(venv))
+
     def installed_by_name(self, names: List[str]) -> List[Venv]:
         return self.installed.filter(lambda v: v.name in names)
+
+    def active_by_name(self, names: List[str]) -> List[str]:
+        return self.active.filter(lambda v: v.name in names)
 
     def to_map(self) -> Map[str, Any]:
         return super().to_map() - 'vim_facade'

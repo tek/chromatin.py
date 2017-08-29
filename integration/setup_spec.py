@@ -1,25 +1,29 @@
-from kallikrein import Expectation, k
+from kallikrein import Expectation, k, kf
 from kallikrein.matchers.length import have_length
+from kallikrein.matchers.either import be_right
+from kallikrein.matchers.maybe import be_just
 
 from amino.test.path import fixture_path
 from amino.test import temp_dir
-from amino import List, Path
+from amino import List, Path, _
 
 from ribosome.test.integration.klk import later
+from ribosome.machine.messages import UpdateState
 
 from chromatin.venvs import VenvFacade
-from chromatin.plugin import VimPlugin
-from chromatin.plugins.core.messages import SetupPlugins, SetupVenvs, PostSetup, AddVenv, InstallMissing, Installed
+from chromatin.plugin import RpluginSpec
+from chromatin.plugins.core.messages import (SetupPlugins, SetupVenvs, PostSetup, AddVenv, InstallMissing, Installed,
+                                             UpdatePlugins, Updated)
 
-from integration._support.rplugin_spec import RpluginSpec
+from integration._support.rplugin_spec_base import RpluginSpecBase
 
 name1 = 'flagellum'
 name2 = 'cilia'
 path1 = fixture_path('rplugin', name1)
 path2 = fixture_path('rplugin', name2)
 
-plugin1 = VimPlugin(name=name1, spec=name1)
-plugin2 = VimPlugin(name=name2, spec=name2)
+plugin1 = RpluginSpec(name=name1, spec=name1)
+plugin2 = RpluginSpec(name=name2, spec=name2)
 
 plugins = List(
     dict(name=name1, spec=str(path1)),
@@ -27,7 +31,7 @@ plugins = List(
 )
 
 
-class TwoExplicitSpec(RpluginSpec):
+class TwoExplicitSpec(RpluginSpecBase):
     '''two plugins in separate venvs
     read plugin config from `g:chromatin_rplugins` $read_conf
     setup venvs $setup_venvs
@@ -67,7 +71,7 @@ class TwoExplicitSpec(RpluginSpec):
         return later(self.plug_exists('Flag') & self.plug_exists('Cil'), timeout=2)
 
 
-class AutostartAfterAddSpec(RpluginSpec):
+class AutostartAfterAddSpec(RpluginSpecBase):
     '''automatic initialization when using `Cram` $auto_cram
     '''
 
@@ -80,7 +84,7 @@ class AutostartAfterAddSpec(RpluginSpec):
         return later(self.plug_exists('Flag'))
 
 
-class AutostartAtBootSpec(RpluginSpec):
+class AutostartAtBootSpec(RpluginSpecBase):
     '''automatic initialization at vim startup $startup
     '''
 
@@ -105,5 +109,26 @@ class AutostartAtBootSpec(RpluginSpec):
         self.seen_message(InstallMissing)
         self.seen_message(Installed)
         return later(self.plug_exists('Flag'))
+
+
+# TODO move to `ActivateSpec`, change `ensure_env` to move the temp venv to `_temp` instead of using the `temp` dir
+# directly
+class RebootSpec(RpluginSpecBase):
+    '''deactivate and reactivate a plugin $reboot
+    '''
+
+    def reboot(self) -> Expectation:
+        name = 'flagellum'
+        self.activate_one(name, 'Flag')
+        later(kf(self.vim.call, 'FlagRebootTest').must(be_right(13)))
+        path = fixture_path('rplugin', 'flagellum2')
+        self.json_cmd_sync('CrmUpdateState', 'vim_plugin', name, spec=str(path))
+        self.seen_message(UpdateState)
+        later(kf(lambda: self.state.plugins.head.map(_.spec)).must(be_just(str(path))))
+        self.cmd_sync('CrmUpdate')
+        self.seen_message(UpdatePlugins)
+        self.seen_message(Updated)
+        self.cmd_sync('CrmReboot')
+        return later(kf(self.vim.call, 'FlagRebootTest').must(be_right(17)))
 
 __all__ = ('TwoExplicitSpec', 'AutostartAfterAddSpec', 'AutostartAtBootSpec')

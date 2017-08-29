@@ -11,7 +11,7 @@ from ribosome.nvim import NvimFacade
 
 from chromatin.main import Chromatin
 from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, UpdatePlugins, Activate,
-                                             Deactivate)
+                                             Deactivate, Reboot)
 
 
 class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
@@ -66,6 +66,10 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
 
     @msg_command(Deactivate)
     def crm_deactivate(self) -> None:
+        pass
+
+    @msg_command(Reboot)
+    def crm_reboot(self) -> None:
         pass
 
     @msg_command(UpdatePlugins)

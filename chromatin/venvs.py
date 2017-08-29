@@ -10,15 +10,15 @@ from amino.boolean import true, false
 from ribosome import Job
 from ribosome.process import JobClient, Result
 
-from chromatin.plugin import VimPlugin
+from chromatin.plugin import RpluginSpec
 
 from chromatin.logging import Logging
-from chromatin.venv import Venv
+from chromatin.venv import Venv, PluginVenv
 
 
 class VenvState(ToStr):
 
-    def __init__(self, plugin: VimPlugin) -> None:
+    def __init__(self, plugin: RpluginSpec) -> None:
         self.plugin = plugin
 
     def _arg_desc(self) -> List[str]:
@@ -43,7 +43,7 @@ def remove_dir(dir: Path) -> IO[None]:
 
 
 @do
-def build(dir: Path, plugin: VimPlugin) -> IO[Venv]:
+def build(dir: Path, plugin: RpluginSpec) -> IO[Venv]:
     builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
     context = yield IO.delay(builder.ensure_directories, str(dir))
     yield IO.delay(builder.create_configuration, context)
@@ -54,7 +54,7 @@ def build(dir: Path, plugin: VimPlugin) -> IO[Venv]:
     yield IO.pure(Venv.from_ns(dir, plugin, context))
 
 
-def cons_venv(dir: Path, plugin: VimPlugin) -> Venv:
+def cons_venv(dir: Path, plugin: RpluginSpec) -> Venv:
     builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
     context = builder.ensure_directories(str(dir))
     return Venv.from_ns(dir, plugin, context)
@@ -109,7 +109,7 @@ class VenvFacade(Logging):
     def __init__(self, dir: Path) -> None:
         self.dir = dir
 
-    def check(self, plugin: VimPlugin) -> VenvState:
+    def check(self, plugin: RpluginSpec) -> VenvState:
         dir = self.dir / plugin.name
         return (
             VenvExistent(plugin, cons_venv(dir, plugin))
@@ -118,7 +118,7 @@ class VenvFacade(Logging):
         )
 
     @do
-    def bootstrap(self, plugin: VimPlugin) -> IO[Venv]:
+    def bootstrap(self, plugin: RpluginSpec) -> IO[Venv]:
         venv_dir = self.dir / plugin.name
         self.log.debug(f'bootstrapping {plugin} in {venv_dir}')
         yield remove_dir(venv_dir)
@@ -131,13 +131,14 @@ class VenvFacade(Logging):
         return self.package_state(venv).exists
 
     @do
-    def install(self, venv: Venv) -> Either[str, Future[Result]]:
+    def install(self, pvenv: PluginVenv) -> Either[str, Future[Result]]:
+        venv = pvenv.venv
         self.log.debug(f'installing {venv}')
         bin_path = yield venv.bin_path
         pip_bin = bin_path / 'pip'
-        args = ['install', '-U', '--no-cache', venv.req]
+        args = ['install', '-U', '--no-cache', pvenv.req]
         job = Job(
-            client=JobClient(cwd=Path.cwd(), name=f'pip install -U {venv.req}'),
+            client=JobClient(cwd=Path.cwd(), name=f'pip install -U {pvenv.req}'),
             exe=str(pip_bin),
             args=args,
             loop=None,

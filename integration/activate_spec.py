@@ -16,10 +16,10 @@ from ribosome.test.integration.klk import later
 from chromatin.util import resources
 from chromatin.plugins.core.messages import AlreadyActive, Deactivated, Deactivate, Activated
 
-from integration._support.rplugin_spec import RpluginSpec
+from integration._support.rplugin_spec_base import RpluginSpecBase
 
 
-class ActivateSpec(RpluginSpec):
+class ActivateSpec(RpluginSpecBase):
 
     @abc.abstractproperty
     def name(self) -> str:

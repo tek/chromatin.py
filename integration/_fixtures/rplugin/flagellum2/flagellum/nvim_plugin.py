@@ -34,7 +34,7 @@ class NvimPlugin(NPlug, name=name, prefix='flag'):
 
     @function()
     def flag_reboot_test(self) -> int:
-        return 13
+        return 17
 
     @neovim.autocmd('VimEnter')
     def vim_enter(self):

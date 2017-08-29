@@ -5,14 +5,16 @@ from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, Setu
                                              Deactivated, DefinedHandlers)
 from chromatin.venvs import VenvExistent
 from chromatin.env import Env
-from chromatin.venv import Venv, ActiveVenv
+from chromatin.venv import Venv, ActiveVenv, PluginVenv
 from chromatin.logging import Logging
-from chromatin.host import PluginHost
+from chromatin.host import start_host, stop_host
 from chromatin.util import resources
-from chromatin.plugin import VimPlugin
+from chromatin.plugin import RpluginSpec
+
+from lenses import Lens, lens
 
 from amino.state import State, EitherState
-from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists, Maybe, curried, Nothing
+from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists, Maybe, curried, Nothing, Path
 from amino.util.string import camelcaseify
 from amino.boolean import true, false
 from amino.list import Nil
@@ -21,7 +23,7 @@ from ribosome.machine import Message
 from ribosome.machine.base import io, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
-from ribosome.nvim import NvimFacade, NvimIO
+from ribosome.nvim import NvimIO
 from ribosome.machine.messages import Info, RunNvimIO
 from ribosome.rpc import define_handler, RpcHandlerSpec, DefinedHandler
 
@@ -46,14 +48,15 @@ class PluginFunctions(Logging):
         cannot be run in parallel as they seem to deadlock.
         '''
         Done = update.cata(Updated, Installed)
+        venv_facade = yield EitherState.inspect_f(_.venv_facade)
         def trans_result(venv: Venv, result: Future) -> Message:
             return Just((Done(venv) if result.success else Error(result.err)).pub)
         @do
-        def install_proc(venv: Venv) -> Either[str, SubProcessSync]:
-            job = yield venv_facade.install(venv)
-            yield Right(SubProcessSync(job, curried(trans_result)(venv)))
-        venv_facade = yield EitherState.inspect_f(_.venv_facade)
-        yield EitherState.lift(venvs.traverse(install_proc, Either))
+        def install_proc(pvenv: PluginVenv) -> Either[str, SubProcessSync]:
+            job = yield venv_facade.install(pvenv)
+            yield Right(SubProcessSync(job, curried(trans_result)(pvenv.venv)))
+        pvenvs = yield EitherState.inspect_f(lambda env: venvs.traverse(env.plugin_venv, Right))
+        yield EitherState.lift(pvenvs.traverse(install_proc, Either))
 
     @do
     def install_missing(self) -> EitherState[Env, List[Message]]:
@@ -71,19 +74,22 @@ class PluginFunctions(Logging):
         )
 
     @do
-    def activate_venv(self, vim: NvimFacade, venv: Venv) -> Either[str, Activated]:
-        host = PluginHost(vim)
-        channel, pid = yield host.start(venv)
-        yield Right(Activated(ActiveVenv(venv=venv, channel=channel, pid=pid)))
+    def start_host(self, venv: Venv, python_exe: Path) -> NvimIO[Activated]:
+        channel, pid = yield start_host(python_exe, venv.plugin_path)
+        yield NvimIO.pure(List(Activated(ActiveVenv(venv=venv, channel=channel, pid=pid))))
+
+    @do
+    def activate_venv(self, venv: Venv) -> NvimIO[Activated]:
+        python_exe = yield venv.python_executable
+        yield Right(RunNvimIO(self.start_host(venv, python_exe)))
 
     @do
     def activate_multi(self, venvs: List[Venv]) -> EitherState[Env, List[Message]]:
-        vim = yield EitherState.inspect(_.vim)
         active = yield EitherState.inspect(_.active_venvs)
         already_active, inactive = venvs.split(active.contains)
         aa_msgs = already_active / AlreadyActive
-        activated_msgs = inactive / L(self.activate_venv)(vim, _) / __.value_or(Error)
-        yield EitherState.pure(aa_msgs + activated_msgs)
+        ios = inactive / self.activate_venv / __.value_or(Error)
+        yield EitherState.pure(aa_msgs + ios)
 
     @do
     def activate_by_names(self, plugins: List[str]) -> EitherState[Env, List[Message]]:
@@ -101,7 +107,7 @@ class PluginFunctions(Logging):
         @do
         def run(env: Env) -> NvimIO[List[Deactivated]]:
             handlers = (env.handlers_for(venv.name) | Nil) / _.spec
-            yield NvimIO.call('jobstop', venv.channel)
+            yield stop_host(venv.channel)
             yield handlers.traverse(undef, NvimIO)
             yield NvimIO.pure(List(Deactivated(venv)))
         return State.inspect(run) / RunNvimIO
@@ -142,7 +148,7 @@ class PluginFunctions(Logging):
         yield NvimIO.pure(handlers.cons(handler_rpc))
 
     @do
-    def add_plugins(self, plugins: List[VimPlugin]) -> EitherState[Env, Maybe[Message]]:
+    def add_plugins(self, plugins: List[RpluginSpec]) -> EitherState[Env, Maybe[Message]]:
         yield EitherState.modify(__.add_plugins(plugins))
         init = yield EitherState.inspect(_.want_init)
         yield EitherState.pure(init.m(SetupPlugins()))
@@ -150,7 +156,7 @@ class PluginFunctions(Logging):
     @do
     def read_conf(self) -> EitherState[Env, Maybe[Message]]:
         vim = yield EitherState.inspect(_.vim)
-        plugins = vim.vars.pl('rplugins').flat_map(__.traverse(VimPlugin.from_config, Either))
+        plugins = vim.vars.pl('rplugins').flat_map(__.traverse(RpluginSpec.from_config, Either))
         yield (
             EitherState.pure(Nothing)
             if plugins.exists(_.empty) else
@@ -208,7 +214,8 @@ class CoreTransitions(ChromatinTransitions):
     @trans.multi(Updated, trans.st)
     def updated(self) -> State[Env, List[Message]]:
         venv = self.msg.venv
-        return State.pure(List(Reboot(venv), Info(resources.updated_plugin(venv.name))))
+        # Reboot(venv),
+        return State.pure(List(Info(resources.updated_plugin(venv.name))))
 
     @trans.unit(IsInstalled, trans.st)
     def is_installed(self) -> State[Env, None]:
@@ -230,6 +237,11 @@ class CoreTransitions(ChromatinTransitions):
     def deactivate(self) -> State[Env, List[Message]]:
         return self.funcs.deactivate_by_names(self.msg.plugins)
 
+    @trans.multi(Reboot)
+    def reboot(self) -> List[Message]:
+        plugins = self.msg.plugins
+        return List(Deactivate(*plugins), Activate(*plugins).at(.75).pub)
+
     @trans.one(Activated, trans.st, trans.nio)
     @do
     def activated(self) -> State[Env, NvimIO[Message]]:
@@ -244,6 +256,11 @@ class CoreTransitions(ChromatinTransitions):
         yield State.modify(__.activate_venv(active_venv))
         yield State.pure(io())
 
+    @trans.unit(Deactivated, trans.st)
+    def deactivated(self) -> None:
+        self.log.debug(f'deactivated {self.msg.venv}')
+        return State.modify(__.deactivate_venv(self.msg.venv))
+
     @trans.unit(DefinedHandlers, trans.st)
     def defined_handlers(self) -> State[Env, None]:
         return State.modify(__.add_handlers(self.msg.venv, self.msg.handlers))
@@ -255,6 +272,13 @@ class CoreTransitions(ChromatinTransitions):
     @trans.unit(AlreadyActive)
     def already_active(self) -> None:
         pass
+
+    def state_lens(self, tpe: str, name: str) -> Either[str, Lens]:
+        return (
+            State.inspect(lambda s: s.plugins.index_where(lambda a: a.name == name) / (lambda i: lens(s).plugins[i]))
+            if tpe == 'vim_plugin' else
+            State.pure(Nothing)
+        )
 
 
 class Plugin(ChromatinComponent):

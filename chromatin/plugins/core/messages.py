@@ -18,7 +18,7 @@ Activated = message('Activated', 'venv')
 Deactivated = message('Deactivated', 'venv')
 AlreadyActive = message('AlreadyActive', 'venv')
 UpdatePlugins = message('UpdatePlugins', varargs='plugins')
-Reboot = message('Reboot', 'venv')
+Reboot = message('Reboot', varargs='plugins')
 DefinedHandlers = message('DefinedHandlers', 'venv', 'handlers')
 
 __all__ = ('ReadConf', 'Start', 'AddPlugin', 'ShowPlugins', 'SetupPlugins', 'SetupVenvs', 'InstallMissing',
