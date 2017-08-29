@@ -213,9 +213,10 @@ class CoreTransitions(ChromatinTransitions):
 
     @trans.multi(Updated, trans.st)
     def updated(self) -> State[Env, List[Message]]:
+        autoreboot = State.inspect(_.autoreboot)
         venv = self.msg.venv
-        # Reboot(venv),
-        return State.pure(List(Info(resources.updated_plugin(venv.name))))
+        reboot = autoreboot.m(List(Reboot(venv.name))) | Nil
+        return State.pure(reboot.cons(Info(resources.updated_plugin(venv.name))))
 
     @trans.unit(IsInstalled, trans.st)
     def is_installed(self) -> State[Env, None]:

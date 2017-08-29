@@ -83,6 +83,10 @@ class Env(Logging, Data):
         return self.vim.vars.pb('autostart') | true
 
     @property
+    def autoreboot(self) -> Boolean:
+        return self.vim.vars.pb('autoreboot') | true
+
+    @property
     def active_venvs(self) -> List[Venv]:
         return self.active / _.venv
 
