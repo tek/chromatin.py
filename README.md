@@ -43,6 +43,8 @@ or after they have been added.
 
 To manually trigger installation, execute `CrmSetupPlugins`.
 
+Virtualenvs are stored in `g:chromatin_venv_dir`, defaulting to `~/.cache/chromatin/venvs`.
+
 ## Activate
 
 Each plugin gets its own plugin host, allowing differing library dependency versions.
