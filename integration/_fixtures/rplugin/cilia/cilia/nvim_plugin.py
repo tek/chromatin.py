@@ -1,6 +1,7 @@
 import os
 import neovim
 import inspect
+import time
 
 from amino import Path, List, Map, __, Maybe
 from amino.logging import amino_root_file_logging
@@ -45,5 +46,15 @@ class NvimPlugin(NPlug, name=name, prefix='cil'):
         fix = lambda v: int(v) if isinstance(v, bool) else v
         m = Maybe(getattr(fun, '_nvim_rpc_spec', None))
         return m / Map / __.valmap(fix)
+
+    def stage_1(self) -> None:
+        time.sleep(1)
+        self.vim.vars.set('cil', 2)
+
+    def stage_2(self) -> None:
+        self.vim.vars.set('flag', 2)
+
+    def stage_4(self) -> None:
+        self.log.info(f'{name} initialized')
 
 __all__ = ('NvimPlugin',)

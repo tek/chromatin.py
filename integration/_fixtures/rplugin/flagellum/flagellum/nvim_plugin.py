@@ -40,4 +40,13 @@ class NvimPlugin(NPlug, name=name, prefix='flag'):
     def vim_enter(self):
         self.log.info('autocmd works')
 
+    def stage_1(self) -> None:
+        self.vim.vars.set('flag', 1)
+
+    def stage_2(self) -> None:
+        self.vim.vars.set('cil', 1)
+
+    def stage_4(self) -> None:
+        self.log.info(f'{name} initialized')
+
 __all__ = ('NvimPlugin',)

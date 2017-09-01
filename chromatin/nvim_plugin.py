@@ -25,7 +25,7 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
     def _default_plugins(self) -> List[str]:
         return List()
 
-    def start_plugin(self) -> None:
+    def stage_1(self) -> None:
         plugins = self.vim.vars.pl('plugins') | self._default_plugins
         self.chromatin = Chromatin(self.vim.proxy, plugins)
         self.chromatin.start()
@@ -35,7 +35,7 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
     def state(self) -> Chromatin:
         if self.chromatin is None and not self.initialized:
             self.initialized = True
-            self.start_plugin()
+            self.stage_1()
         self.wait_for_startup()
         return self.chromatin
 
@@ -78,6 +78,6 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
 
     @neovim.autocmd('VimEnter')
     def vim_enter(self):
-        threading.Thread(target=self.start_plugin).start()
+        threading.Thread(target=self.state).start()
 
 __all__ = ('ChromatinNvimPlugin',)

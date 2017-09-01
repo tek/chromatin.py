@@ -2,7 +2,7 @@ from chromatin.state import ChromatinTransitions, ChromatinComponent
 from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, SetupVenvs, InstallMissing,
                                              AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
                                              Updated, Reboot, Activate, AlreadyActive, ReadConf, Deactivate,
-                                             Deactivated, DefinedHandlers)
+                                             Deactivated, DefinedHandlers, ActivationComplete, InitializationComplete)
 from chromatin.venvs import VenvExistent
 from chromatin.env import Env
 from chromatin.venv import Venv, ActiveVenv, PluginVenv
@@ -15,7 +15,7 @@ from lenses import Lens, lens
 
 from amino.state import State, EitherState
 from amino import __, do, _, Either, L, Just, Future, List, Right, Boolean, Lists, Maybe, curried, Nothing, Path
-from amino.util.string import camelcaseify
+from amino.util.string import camelcaseify, camelcase
 from amino.boolean import true, false
 from amino.list import Nil
 
@@ -89,7 +89,7 @@ class PluginFunctions(Logging):
         already_active, inactive = venvs.split(active.contains)
         aa_msgs = already_active / AlreadyActive
         ios = inactive / self.activate_venv / __.value_or(Error)
-        yield EitherState.pure(aa_msgs + ios)
+        yield EitherState.pure((aa_msgs + ios).cat(ActivationComplete()))
 
     @do
     def activate_by_names(self, plugins: List[str]) -> EitherState[Env, List[Message]]:
@@ -100,6 +100,9 @@ class PluginFunctions(Logging):
             if venvs.empty else
             self.activate_multi(venvs)
         )
+
+    def activate_all(self) -> EitherState[Env, List[Message]]:
+        return self.activate_by_names(List())
 
     def deactivate_venv(self, venv: ActiveVenv) -> State[Env, RunNvimIO]:
         def undef(spec: RpcHandlerSpec) -> NvimIO[str]:
@@ -124,9 +127,6 @@ class PluginFunctions(Logging):
             if venvs.empty else
             self.deactivate_multi(venvs)
         )
-
-    def activate_all(self) -> EitherState[Env, List[Message]]:
-        return self.activate_by_names(List())
 
     @do
     def activate_newly_installed(self) -> EitherState[Env, List[Message]]:
@@ -212,11 +212,12 @@ class CoreTransitions(ChromatinTransitions):
         return State.pure(List(IsInstalled(venv), Info(resources.installed_plugin(venv.name))))
 
     @trans.multi(Updated, trans.st)
+    @do
     def updated(self) -> State[Env, List[Message]]:
-        autoreboot = State.inspect(_.autoreboot)
+        autoreboot = yield State.inspect(_.autoreboot)
         venv = self.msg.venv
-        reboot = autoreboot.m(List(Reboot(venv.name))) | Nil
-        return State.pure(reboot.cons(Info(resources.updated_plugin(venv.name))))
+        reboot = autoreboot.l(Reboot(venv.name))
+        yield State.pure(reboot.cons(Info(resources.updated_plugin(venv.name))))
 
     @trans.unit(IsInstalled, trans.st)
     def is_installed(self) -> State[Env, None]:
@@ -254,8 +255,22 @@ class CoreTransitions(ChromatinTransitions):
             handlers = yield self.funcs.define_handlers(active_venv)
             yield self.vim.runtime(f'chromatin/{venv.name}/*')
             yield NvimIO.pure(DefinedHandlers(venv, handlers))
-        yield State.modify(__.activate_venv(active_venv))
+        yield State.modify(__.host_started(active_venv))
         yield State.pure(io())
+
+    @trans.one(ActivationComplete, trans.st, trans.nio)
+    @do
+    def activation_complete(self) -> State[Env, NvimIO[None]]:
+        venvs = yield State.inspect(_.uninitialized)
+        prefixes = venvs / _.name / camelcase
+        @curried
+        def stage(num: int) -> NvimIO[None]:
+            return prefixes.traverse(lambda a: NvimIO.cmd_sync(f'{a}Stage{num}'), NvimIO)
+        yield State.pure(Lists.range(1, 5).traverse(stage, NvimIO).replace(InitializationComplete()))
+
+    @trans.unit(InitializationComplete, trans.st)
+    def initialization_complete(self) -> State[Env, None]:
+        return State.modify(__.initialization_complete())
 
     @trans.unit(Deactivated, trans.st)
     def deactivated(self) -> None:

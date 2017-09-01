@@ -1,6 +1,6 @@
 import abc
 import shutil
-from typing import Callable
+from typing import Callable, TypeVar
 
 from kallikrein import Expectation, kf
 from kallikrein.matchers.maybe import be_just
@@ -9,12 +9,13 @@ from kallikrein.matchers.comparison import not_equal, greater
 from kallikrein.matchers.either import be_right
 
 from amino.test.path import base_dir
-from amino import Path, Just, _, L
+from amino import Path, Just, _, L, List
 
 from ribosome.test.integration.klk import later
 
 from chromatin.util import resources
 from chromatin.plugins.core.messages import AlreadyActive, Deactivated, Deactivate, Activated
+from chromatin.plugin import RpluginSpec
 
 from integration._support.rplugin_spec_base import RpluginSpecBase
 
@@ -22,30 +23,41 @@ from integration._support.rplugin_spec_base import RpluginSpecBase
 class ActivateSpec(RpluginSpecBase):
 
     @abc.abstractproperty
-    def name(self) -> str:
+    def names(self) -> List[str]:
+        ...
+
+    @abc.abstractmethod
+    def check_exists(self) -> Expectation:
         ...
 
     @property
     def venvs_path(self) -> Path:
         return base_dir().parent / 'temp' / 'venv'
 
-    @property
-    def venv_path(self) -> Path:
-        return self.venvs_path / self.name
+    def venv_path(self, name: str) -> Path:
+        return self.venvs_path / name
 
-    def setup_venv(self) -> None:
-        shutil.rmtree(self.venv_path, ignore_errors=True)
+    def remove(self) -> None:
+        shutil.rmtree(str(self.venvs_path), ignore_errors=True)
         self.venvs_path.mkdir(parents=True, exist_ok=True)
-        venv, venvs, plugin = self.install_one(self.name, Just(self.venvs_path))
 
 
-def ensure_venv(f: Callable[[ActivateSpec], Expectation]) -> Callable[[ActivateSpec], Expectation]:
-    def wrap(self: ActivateSpec) -> Expectation:
-        if not self.venv_path.exists():
-            self.setup_venv()
-        else:
-            self.setup_one(self.name, Just(self.venvs_path))
-        self.cmd('CrmSetupPlugins')
+AS = TypeVar('AS', bound=ActivateSpec)
+
+
+def ensure_venv(f: Callable[[AS], Expectation]) -> Callable[[AS], Expectation]:
+    def wrap(self: AS) -> Expectation:
+        venvs = self.setup_venvs(Just(self.venvs_path))
+        create = self.names.exists(lambda a: not self.venv_path(a).exists())
+        if create:
+            self.remove()
+        def setup(venv: str) -> RpluginSpec:
+            return self.setup_one(venv, Just(self.venvs_path))
+        plugins = self.names / setup
+        self.cmd_sync('CrmSetupPlugins')
+        for plugin in plugins:
+            self.venv_existent(venvs, plugin, 20)
+            self.package_installed(venvs, plugin)
         self.check_exists()
         return f(self)
     return wrap
@@ -65,6 +77,10 @@ class ActivateFlagSpec(ActivateSpec):
     def name(self) -> str:
         return 'flagellum'
 
+    @property
+    def names(self) -> List[str]:
+        return List(self.name)
+
     def check_exists(self) -> Expectation:
         return later(self.plug_exists('Flag'))
 
@@ -81,7 +97,7 @@ class ActivateFlagSpec(ActivateSpec):
     @ensure_venv
     def config(self) -> Expectation:
         later(self.command_exists('FlagConfTest'))
-        self._var_becomes('flagellum_value', 'success')
+        self.var_becomes('flagellum_value', 'success')
         self.vim.cmd_sync('FlagConfTest')
         return self._log_line(-1, be_just(end_with('success')))
 
@@ -110,6 +126,23 @@ class ActivateFlagSpec(ActivateSpec):
         return kf(pid).must(be_right(0))
 
 
+class ActivateTwoSpec(ActivateSpec):
+    '''run initialization stages in sequence $stages
+    '''
+
+    @property
+    def names(self) -> List[str]:
+        return List('flagellum', 'cilia')
+
+    def check_exists(self) -> Expectation:
+        return later(self.plug_exists('Flag') & self.plug_exists('Cil'))
+
+    @ensure_venv
+    def stages(self) -> Expectation:
+        self.names % (lambda a: self._log_contains(end_with(f'{a} initialized')))
+        return self.var_is('flag', 2) & self.var_is('cil', 1)
+
+
 class ActivateMiscSpec(ActivateSpec):
 
     @property
@@ -121,4 +154,4 @@ class ActivateMiscSpec(ActivateSpec):
         self._init()
         return later(self.command_exists('ProAdd'))
 
-__all__ = ('ActivateFlagSpec',)
+__all__ = ('ActivateFlagSpec', 'ActivateTwoSpec')

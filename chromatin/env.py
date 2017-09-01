@@ -29,6 +29,7 @@ class Env(Logging, Data):
     venvs = map_field()
     installed = list_field(Venv)
     active = list_field(ActiveVenv)
+    uninitialized = list_field(ActiveVenv)
     handlers = map_field()
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
@@ -94,8 +95,11 @@ class Env(Logging, Data):
     def inactive(self) -> List[ActiveVenv]:
         return self.installed.remove_all(self.active_venvs)
 
-    def activate_venv(self, venv: ActiveVenv) -> 'Env':
-        return self.append1.active(venv)
+    def host_started(self, venv: ActiveVenv) -> 'Env':
+        return self.append1.active(venv).append1.uninitialized(venv)
+
+    def initialization_complete(self) -> 'Env':
+        return self.setter.uninitialized(List())
 
     def deactivate_venv(self, venv: ActiveVenv) -> 'Env':
         return self.modder.active(__.without(venv))

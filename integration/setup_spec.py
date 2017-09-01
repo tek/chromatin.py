@@ -77,7 +77,7 @@ class AutostartAfterAddSpec(RpluginSpecBase):
 
     def auto_cram(self) -> Expectation:
         self.vim.vars.set_p('autostart', True)
-        venvs, plugin = self.setup_one('flagellum')
+        venvs, plugin = self.setup_one_with_venvs('flagellum')
         self.seen_message(SetupPlugins)
         self.venv_existent(venvs, plugin, timeout=4)
         self.package_installed(venvs, plugin)
