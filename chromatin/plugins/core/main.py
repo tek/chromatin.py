@@ -1,15 +1,4 @@
-from chromatin.state import ChromatinTransitions, ChromatinComponent
-from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, SetupVenvs, InstallMissing,
-                                             AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
-                                             Updated, Reboot, Activate, AlreadyActive, ReadConf, Deactivate,
-                                             Deactivated, DefinedHandlers, ActivationComplete, InitializationComplete)
-from chromatin.venvs import VenvExistent
-from chromatin.env import Env
-from chromatin.venv import Venv, ActiveVenv, PluginVenv
-from chromatin.logging import Logging
-from chromatin.host import start_host, stop_host
-from chromatin.util import resources
-from chromatin.plugin import RpluginSpec
+import time
 
 from lenses import Lens, lens
 
@@ -26,6 +15,19 @@ from ribosome.machine import trans
 from ribosome.nvim import NvimIO
 from ribosome.machine.messages import Info, RunNvimIO
 from ribosome.rpc import define_handler, RpcHandlerSpec, DefinedHandler
+
+from chromatin.state import ChromatinTransitions, ChromatinComponent
+from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, SetupVenvs, InstallMissing,
+                                             AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
+                                             Updated, Reboot, Activate, AlreadyActive, ReadConf, Deactivate,
+                                             Deactivated, DefinedHandlers, ActivationComplete, InitializationComplete)
+from chromatin.venvs import VenvExistent
+from chromatin.env import Env
+from chromatin.venv import Venv, ActiveVenv, PluginVenv
+from chromatin.logging import Logging
+from chromatin.host import start_host, stop_host
+from chromatin.util import resources
+from chromatin.plugin import RpluginSpec
 
 
 class PluginFunctions(Logging):
@@ -172,7 +174,7 @@ class CoreTransitions(ChromatinTransitions):
 
     @trans.multi(Start)
     def stage_i(self) -> State[Env, List[Message]]:
-        return List(io(__.vars.set_p('started', True)), io(__.vars.ensure_p('rplugins', [])), ReadConf().at(0.6))
+        return List(io(__.vars.set_p('started', True)), io(__.vars.ensure_p('rplugins', [])), ReadConf().at(0.6).pub)
 
     @trans.one(ReadConf, trans.est, trans.m)
     def read_conf(self) -> EitherState[Env, Maybe[Message]]:
@@ -263,7 +265,6 @@ class CoreTransitions(ChromatinTransitions):
     def activation_complete(self) -> State[Env, NvimIO[None]]:
         venvs = yield State.inspect(_.uninitialized)
         prefixes = venvs / _.name / camelcase
-        @curried
         def stage(num: int) -> NvimIO[None]:
             return prefixes.traverse(lambda a: NvimIO.cmd_sync(f'{a}Stage{num}'), NvimIO)
         yield State.pure(Lists.range(1, 5).traverse(stage, NvimIO).replace(InitializationComplete()))

@@ -2,7 +2,6 @@ import typing
 from typing import Tuple
 
 from ribosome.nvim import NvimIO
-from ribosome.logging import ribo_log
 
 from amino import Path, do
 
