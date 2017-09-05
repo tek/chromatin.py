@@ -1,6 +1,6 @@
 # Chromatin
 
-This **neovim** python remote plugin provides management for plugins written with [ribosome] and distributed over
+This **neovim** python remote plugin provides management for plugins built with [ribosome] and distributed over
 **pypi**.
 
 Each plugin is installed with `pip` into a separate virtualenv and loaded automatically, without the need for
@@ -8,11 +8,15 @@ Each plugin is installed with `pip` into a separate virtualenv and loaded automa
 
 # Install
 
-The plugin itself needs [ribosome] to be installed:
+The nvim plugin is just a bootstrap stub that installs **chromatin** itself into a virtualenv and starts its host.
+No dependencies have to be installed as a prerequisite; if a python 3.6 interpreter is available, everything should be
+automatically set up.
 
-```
-pip install ribosome
-```
+On the first start, it takes about 10 seconds for bootstrapping to complete, after which **chromatin** begins to install
+your plugins.
+
+**Note**: The plugin has a hard dep on **pyuv** at the moment, because the bootstrapping process hangs with the
+**asyncio** main loop.
 
 # Usage
 

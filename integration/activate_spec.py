@@ -104,7 +104,7 @@ class ActivateFlagSpec(ActivateSpec):
     @ensure_venv
     def update(self) -> Expectation:
         self.cmd_sync('CrmUpdate')
-        return self._log_line(-1, be_just(resources.updated_plugin(self.name)))
+        return self._log_line(-1, be_just(end_with(resources.updated_plugin(self.name))))
 
     @ensure_venv
     def twice(self) -> Expectation:

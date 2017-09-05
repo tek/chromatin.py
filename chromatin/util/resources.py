@@ -1,6 +1,7 @@
 from amino import Path, List
+from amino.options import EnvOption
 
-xdg_cache_home_env_var = 'XDG_CACHE_HOME'
+xdg_cache_home = EnvOption('XDG_CACHE_HOME')
 
 
 def create_venv_dir_error(dir: Path) -> str:
@@ -26,5 +27,5 @@ def installed_plugin(name: str) -> str:
 def updated_plugin(name: str) -> str:
     return f'updated plugin \'{name}\''
 
-__all__ = ('xdg_cache_home_env_var', 'create_venv_dir_error', 'installed_plugin', 'updated_plugin',
-           'no_plugins_match_for_activation', 'no_plugins_match_for_deactivation')
+__all__ = ('xdg_cache_home', 'xdg_cache_home_env_var', 'create_venv_dir_error', 'installed_plugin',
+           'updated_plugin', 'no_plugins_match_for_activation', 'no_plugins_match_for_deactivation')

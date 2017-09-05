@@ -1,22 +1,23 @@
-from typing import Any
+from typing import Any, Generator
+
 from ribosome.data import Data
 from ribosome.record import dfield, list_field, map_field, maybe_field
 from ribosome.nvim import NvimFacade, AsyncVimProxy
 from ribosome.rpc import DefinedHandler
 
-from amino import List, _, Either, Path, Try, env, Right, do, Boolean, Map, __
+from amino import List, _, Either, Path, Try, Right, do, Boolean, Map, __
 from amino.boolean import true
 
 from chromatin.logging import Logging
 from chromatin.plugin import RpluginSpec
 from chromatin.venv import Venv, ActiveVenv, PluginVenv
 from chromatin.venvs import VenvFacade
-from chromatin.util.resources import xdg_cache_home_env_var, create_venv_dir_error
+from chromatin.util.resources import xdg_cache_home, create_venv_dir_error
 
 
 @do
-def _default_venv_dir() -> Either[str, Path]:
-    xdg_cache_path = env[xdg_cache_home_env_var] / Path | (Path.home() / '.cache')
+def _default_venv_dir() -> Generator[Either[str, Path], Any, None]:
+    xdg_cache_path = xdg_cache_home.value / Path | (Path.home() / '.cache')
     venv_dir = xdg_cache_path / 'chromatin' / 'venvs'
     yield Try(venv_dir.mkdir, parents=True, exist_ok=True).lmap(lambda a: create_venv_dir_error(venv_dir))
     yield Right(venv_dir)

@@ -14,9 +14,15 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=['unit', 'unit.*', 'integration', 'integration.*']),
     install_requires=[
-        'ribosome~=10.18.1',
+        'ribosome~=10.18.3',
+        'pyuv',
     ],
     tests_require=[
         'kallikrein',
     ],
+    entry_points={
+        'console_scripts': [
+            'crm_run = chromatin.cli:run',
+        ],
+    },
 )

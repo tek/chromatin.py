@@ -14,7 +14,7 @@ from ribosome.machine.transition import Error
 from ribosome.machine import trans
 from ribosome.nvim import NvimIO
 from ribosome.machine.messages import Info, RunNvimIO
-from ribosome.rpc import define_handler, RpcHandlerSpec, DefinedHandler
+from ribosome.rpc import define_handler, RpcHandlerSpec, DefinedHandler, define_handlers
 from ribosome.process import Result
 
 from chromatin.state import ChromatinTransitions, ChromatinComponent
@@ -153,7 +153,7 @@ class PluginFunctions(Logging):
         handler_rpc = yield define_handler(channel, handlers_spec, name, venv.plugin_path)
         result = yield NvimIO.call_once_defined(rpc_handlers_fun, timeout=3)
         handler_specs = Lists.wrap(result).flat_map(RpcHandlerSpec.decode)
-        handlers = yield handler_specs.traverse(L(define_handler)(channel, _, name, venv.plugin_path), NvimIO)
+        handlers = yield define_handlers(channel, handler_specs, name, venv.plugin_path)
         yield NvimIO.pure(handlers.cons(handler_rpc))
 
     @do

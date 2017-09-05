@@ -14,6 +14,7 @@ from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, Setu
                                              Deactivate, Reboot)
 
 
+@neovim.plugin
 class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
 
     def __init__(self, vim: neovim.api.Nvim) -> None:
@@ -30,7 +31,7 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
         self.chromatin = Chromatin(self.vim.proxy, plugins)
         self.chromatin.start()
         self.chromatin.wait_for_running()
-        self.chromatin.send_sync(Start())
+        self.chromatin.send(Start())
 
     def state(self) -> Chromatin:
         if self.chromatin is None and not self.initialized:
@@ -79,5 +80,6 @@ class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
     @neovim.autocmd('VimEnter')
     def vim_enter(self):
         threading.Thread(target=self.state).start()
+
 
 __all__ = ('ChromatinNvimPlugin',)

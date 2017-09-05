@@ -3,7 +3,7 @@ from kallikrein.matchers.length import have_length
 from kallikrein.matchers.either import be_right
 from kallikrein.matchers.maybe import be_just
 
-from amino.test.path import fixture_path
+from amino.test.path import fixture_path, base_dir
 from amino.test import temp_dir
 from amino import List, Path, _
 
@@ -68,7 +68,7 @@ class TwoExplicitSpec(RpluginSpecBase):
         self.package_installed(self.venvs, plugin2)
         self.seen_message(PostSetup)
         self.cmd_sync('CrmActivate')
-        return later(self.plug_exists('Flag') & self.plug_exists('Cil'), timeout=2)
+        return self.plug_exists('Flag') & self.plug_exists('Cil')
 
 
 class AutostartAfterAddSpec(RpluginSpecBase):
@@ -109,6 +109,45 @@ class AutostartAtBootSpec(RpluginSpecBase):
         self.seen_message(InstallMissing)
         self.seen_message(Installed)
         return later(self.plug_exists('Flag'))
+
+
+class BootstrapSpec(RpluginSpecBase):
+    '''auto-install chromatin at boot $bootstrap
+    '''
+
+    @property
+    def autostart_plugin(self) -> bool:
+        return False
+
+    @property
+    def pkg_dir(self) -> Path:
+        return base_dir().parent
+
+    @property
+    def dir(self) -> Path:
+        return self.pkg_dir / 'temp' / 'venv'
+
+    @property
+    def venvs(self) -> VenvFacade:
+        return VenvFacade(self.dir)
+
+    def _pre_start(self) -> None:
+        super()._pre_start()
+        plugins = List(dict(name=name1, spec=str(path1)))
+        self.vim.options.amend_l('runtimepath', str(self.pkg_dir))
+        self.vim.vars.set_p('autobootstrap', False)
+        self.vim.vars.set_p('venv_dir', str(self.dir))
+        self.vim.vars.set_p('pip_req', str(self.pkg_dir))
+        self.vim.vars.set_p('rplugins', plugins)
+
+    def bootstrap(self) -> Expectation:
+        self.command_exists_not('Cram')
+        self.vim.runtime('plugin/bootstrap')
+        self.cmd('BootstrapChromatin')
+        self.command_exists('ChromatinStage1', timeout=20)
+        self.cmd_sync('ChromatinStage1')
+        self.cmd_sync('CrmSetupPlugins')
+        return self.plug_exists('Flag', timeout=15)
 
 
 # TODO move to `ActivateSpec`, change `ensure_env` to move the temp venv to `_temp` instead of using the `temp` dir
