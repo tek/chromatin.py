@@ -25,7 +25,6 @@ def run() -> None:
         channel, pid = start_host(python_exe, plugin_path, True).attempt(nvim).get_or_raise
         handlers = rpc_handlers(ChromatinNvimPlugin)
         define_handlers(channel, handlers, 'chromatin', str(plugin_path)).attempt(nvim).get_or_raise
-        ribo_log.info('defined')
         if installed:
             ribo_log.info('chromatin initialized. installing plugins...')
         nvim.cmd('ChromatinStage1')
