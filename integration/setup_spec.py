@@ -34,7 +34,7 @@ plugins = List(
 class TwoExplicitSpec(RpluginSpecBase):
     '''two plugins in separate venvs
     read plugin config from `g:chromatin_rplugins` $read_conf
-    setup venvs $setup_venvs
+    setup venvs $send_setup_venvs
     bootstrap and activate, explicit initialization $bootstrap
     '''
 
@@ -54,7 +54,7 @@ class TwoExplicitSpec(RpluginSpecBase):
     def read_conf(self) -> Expectation:
         return k(self.state.plugins).must(have_length(2))
 
-    def setup_venvs(self) -> Expectation:
+    def send_setup_venvs(self) -> Expectation:
         self.cmd_sync('CrmPlug core setup_venvs')
         self.seen_message(SetupVenvs)
         return self.venv_existent(self.venvs, plugin1) & self.venv_existent(self.venvs, plugin2)
@@ -170,4 +170,4 @@ class RebootSpec(RpluginSpecBase):
         self.cmd_sync('CrmReboot')
         return later(kf(self.vim.call, 'FlagRebootTest').must(be_right(17)))
 
-__all__ = ('TwoExplicitSpec', 'AutostartAfterAddSpec', 'AutostartAtBootSpec')
+__all__ = ('TwoExplicitSpec', 'AutostartAfterAddSpec', 'AutostartAtBootSpec', 'BootstrapSpec')

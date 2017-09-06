@@ -6,12 +6,11 @@ let s:script = fnamemodify(expand('<sfile>'), ':p:h:h') . '/scripts/bootstrap.py
 let s:req = get(g:, 'chromatin_pip_req', 'chromatin')
 
 function! ChromatinJobStderr(id, data, event) abort "{{{
-  echoerr 'error in chromatin rpc job ' . a:id . ': ' . string(a:data)
+  echoerr 'error in chromatin rpc job on channel ' . a:id . ': ' . string(a:data)
 endfunction "}}}
 
 function! BootstrapChromatin() abort "{{{
-  call jobstart(['/home/tek/usr/opt/pyenv/shims/python3', s:script, s:venv, s:req],
-        \ { 'rpc': v:true, 'on_stderr': 'ChromatinJobStderr' })
+  call jobstart(['python3', s:script, s:venv, s:req], { 'rpc': v:true, 'on_stderr': 'ChromatinJobStderr' })
 endfunction "}}}
 
 command! BootstrapChromatin call BootstrapChromatin()
