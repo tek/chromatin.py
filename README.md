@@ -58,6 +58,7 @@ In order to manually trigger the activation of plugins, execute `CrmActivate [pl
 ## Update
 
 The command `CrmUpdate [plugin_names]` runs `pip install --upgrade` for the specified or all plugins.
+This includes **chromatin** itself, but you will have to restart vim for the changes to take effect.
 
 ## Deactivate
 
