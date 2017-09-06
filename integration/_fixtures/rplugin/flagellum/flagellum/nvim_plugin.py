@@ -15,9 +15,6 @@ name = 'flagellum'
 @neovim.plugin
 class NvimPlugin(NPlug, name=name, prefix='flag'):
 
-    def start_plugin(self) -> None:
-        pass
-
     @command(sync=True)
     def flag_test(self) -> None:
         self.log.info(f'{name} working')
