@@ -17,7 +17,7 @@ class Chromatin(UnloopedRootMachine, Logging):
 
     @property
     def init(self) -> Env:
-        return Env(vim_facade=Just(self.vim), plugins=List(RpluginSpec(name=self.title, spec=self.title)))
+        return Env(vim_facade=Just(self.vim))
 
     @property
     def title(self) -> str:

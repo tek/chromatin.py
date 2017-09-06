@@ -33,14 +33,14 @@ from chromatin.plugin import RpluginSpec
 A = TypeVar('A')
 STE = StateT[Either, Env, A]
 STI = StateT[Id, Env, A]
-ESL = Generator[STE, Any, None]
-ISL = Generator[STI, Any, None]
+ESG = Generator[STE, Any, None]
+ISG = Generator[STI, Any, None]
 
 
 class PluginFunctions(Logging):
 
     @do
-    def setup_venvs(self) -> ESL:
+    def setup_venvs(self) -> ESG:
         '''check whether a venv exists for each plugin in the self.env.
         for those that don't, create self.venvs in `g:chromatin_venv_dir`.
         '''
@@ -52,7 +52,7 @@ class PluginFunctions(Logging):
         yield EitherState.pure(existent.map(_.venv).map(IsInstalled).cat(RunIOsParallel(ios)))
 
     @do
-    def install_plugins(self, venvs: List[Venv], update: Boolean) -> ESL:
+    def install_plugins(self, venvs: List[Venv], update: Boolean) -> ESG:
         '''run subprocesses in sequence that install packages into their venvs using pip.
         cannot be run in parallel as they seem to deadlock.
         '''
@@ -68,14 +68,13 @@ class PluginFunctions(Logging):
         yield EitherState.lift(pvenvs.traverse(install_proc, Either))
 
     @do
-    def install_missing(self) -> ESL:
+    def install_missing(self) -> ESG:
         missing = yield EitherState.inspect_f(_.missing)
         yield self.install_plugins(missing, false)
 
     @do
-    def update_plugins(self, plugins: List[str]) -> ESL:
-        getter = _.installed if plugins.empty else __.installed_by_name(plugins)
-        venvs = yield EitherState.inspect(getter)
+    def update_plugins(self, plugins: List[str]) -> ESG:
+        venvs = yield EitherState.inspect(__.updateable(plugins))
         yield (
             EitherState.pure(List(Error(resources.no_plugins_match_for_update(plugins))))
             if venvs.empty else
@@ -93,7 +92,7 @@ class PluginFunctions(Logging):
         yield Right(RunNvimIO(self.start_host(venv, python_exe)))
 
     @do
-    def activate_multi(self, venvs: List[Venv]) -> ESL:
+    def activate_multi(self, venvs: List[Venv]) -> ESG:
         active = yield EitherState.inspect(_.active_venvs)
         already_active, inactive = venvs.split(active.contains)
         aa_msgs = already_active / AlreadyActive
@@ -101,7 +100,7 @@ class PluginFunctions(Logging):
         yield EitherState.pure((aa_msgs + ios).cat(ActivationComplete()))
 
     @do
-    def activate_by_names(self, plugins: List[str]) -> ESL:
+    def activate_by_names(self, plugins: List[str]) -> ESG:
         getter = _.installed if plugins.empty else __.installed_by_name(plugins)
         venvs = yield EitherState.inspect(getter)
         yield (
@@ -128,7 +127,7 @@ class PluginFunctions(Logging):
         return venvs.traverse(self.deactivate_venv, State)
 
     @do
-    def deactivate_by_names(self, plugins: List[str]) -> ISL:
+    def deactivate_by_names(self, plugins: List[str]) -> ISG:
         getter = _.active if plugins.empty else __.active_by_name(plugins)
         venvs = yield State.inspect(getter)
         yield (
@@ -138,7 +137,7 @@ class PluginFunctions(Logging):
         )
 
     @do
-    def activate_newly_installed(self) -> ESL:
+    def activate_newly_installed(self) -> ESG:
         new = yield EitherState.inspect(_.inactive)
         yield self.activate_multi(new)
 
@@ -157,13 +156,13 @@ class PluginFunctions(Logging):
         yield NvimIO.pure(handlers.cons(handler_rpc))
 
     @do
-    def add_plugins(self, plugins: List[RpluginSpec]) -> ESL:
+    def add_plugins(self, plugins: List[RpluginSpec]) -> ESG:
         yield EitherState.modify(__.add_plugins(plugins))
         init = yield EitherState.inspect(_.want_init)
         yield EitherState.pure(init.m(SetupPlugins()))
 
     @do
-    def read_conf(self) -> ESL:
+    def read_conf(self) -> ESG:
         vim = yield EitherState.inspect(_.vim)
         plugins = vim.vars.pl('rplugins').flat_map(__.traverse(RpluginSpec.from_config, Either))
         yield (
@@ -172,6 +171,16 @@ class PluginFunctions(Logging):
             plugins.map(self.add_plugins).value_or(lambda a: EitherState.pure(Just(Error(a))))
         )
 
+    @do
+    def add_crm_venv(self) -> ESG:
+        handle = yield EitherState.inspect(_.handle_crm)
+        if handle:
+            plugin = RpluginSpec.simple('chromatin')
+            yield EitherState.modify(__.setter.chromatin_plugin(Just(plugin)))
+            venv_facade = yield EitherState.inspect_f(_.venv_facade)
+            venv = venv_facade.cons(plugin)
+            yield State.modify(__.setter.chromatin_venv(Just(venv)))
+
 
 class CoreTransitions(ChromatinTransitions):
 
@@ -179,9 +188,12 @@ class CoreTransitions(ChromatinTransitions):
     def funcs(self) -> PluginFunctions:
         return PluginFunctions()
 
-    @trans.multi(Start)
-    def stage_i(self) -> List[Message]:
-        return List(io(__.vars.set_p('started', True)), io(__.vars.ensure_p('rplugins', [])), ReadConf().at(0.6).pub)
+    @trans.multi(Start, trans.est)
+    @do
+    def stage_i(self) -> ESG:
+        yield self.funcs.add_crm_venv()
+        msgs = List(io(__.vars.set_p('started', True)), io(__.vars.ensure_p('rplugins', [])), ReadConf().at(0.6).pub)
+        yield EitherState.pure(msgs)
 
     @trans.one(ReadConf, trans.est, trans.m)
     def read_conf(self) -> EitherState[Env, Maybe[Message]]:

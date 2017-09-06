@@ -22,6 +22,7 @@ class RpluginSpecBase(ChromatinPluginIntegrationSpec):
         super()._pre_start()
         self.vim.vars.set_p('autostart', False)
         self.vim.vars.set_p('autoreboot', False)
+        self.vim.vars.set_p('handle_crm', False)
 
     def command_exists(self, name: str, **kw) -> Expectation:
         return later(kf(self.vim.command_exists, name).true, **kw)

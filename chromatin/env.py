@@ -23,10 +23,16 @@ def _default_venv_dir() -> Generator[Either[str, Path], Any, None]:
     yield Right(venv_dir)
 
 
+def filter_venvs_by_name(venvs: List[Venv], names: List[str]) -> List[Venv]:
+    return venvs if names.empty else venvs.filter(lambda v: v.name in names)
+
+
 class Env(Logging, Data):
     vim_facade = maybe_field((NvimFacade, AsyncVimProxy))
     initialized = dfield(False)
     plugins = list_field(RpluginSpec)
+    chromatin_plugin = maybe_field(RpluginSpec)
+    chromatin_venv = maybe_field(Venv)
     venvs = map_field()
     installed = list_field(Venv)
     active = list_field(ActiveVenv)
@@ -51,8 +57,12 @@ class Env(Logging, Data):
     def add_installed(self, venv: Venv) -> 'Env':
         return self.append1.installed(venv)
 
+    @property
+    def plugins_with_crm(self) -> List[RpluginSpec]:
+        return self.plugins.cons(self.chromatin_plugin)
+
     def plugin_by_name(self, name: str) -> Either[str, RpluginSpec]:
-        return self.plugins.find(lambda a: a.name == name)
+        return self.plugins_with_crm.find(lambda a: a.name == name).to_either(f'no plugin with name `{name}`')
 
     @do
     def plugin_venv(self, venv: Venv) -> Either[str, PluginVenv]:
@@ -83,6 +93,10 @@ class Env(Logging, Data):
     @property
     def want_init(self) -> Boolean:
         return self.vim.vars.pb('autostart') | true
+
+    @property
+    def handle_crm(self) -> Boolean:
+        return self.vim.vars.pb('handle_crm') | true
 
     @property
     def autoreboot(self) -> Boolean:
@@ -123,5 +137,13 @@ class Env(Logging, Data):
 
     def handlers_for(self, plugin: str) -> Either[str, List[DefinedHandler]]:
         return self.handlers.lift(plugin).to_either(f'no handlers defined for {plugin}')
+
+    @property
+    def installed_with_crm(self) -> List[Venv]:
+        return self.installed.cons_m(self.chromatin_venv)
+
+    def updateable(self, plugins: List[str]) -> List[Venv]:
+        return filter_venvs_by_name(self.installed_with_crm, plugins)
+
 
 __all__ = ('Env',)

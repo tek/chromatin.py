@@ -16,6 +16,10 @@ class RpluginSpec(Record):
             return RpluginSpec(name=str(name), spec=str(spec))
         return m.lift('spec').to_either(f'plugin data {data} missing attribute `spec`').map(create)
 
+    @staticmethod
+    def simple(name: str) -> 'RpluginSpec':
+        return RpluginSpec(name=name, spec=name)
+
     def _arg_desc(self) -> List[str]:
         return List(self.name, self.spec)
 

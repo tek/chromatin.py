@@ -112,7 +112,7 @@ class VenvFacade(Logging):
     def check(self, plugin: RpluginSpec) -> VenvState:
         dir = self.dir / plugin.name
         return (
-            VenvExistent(plugin, cons_venv(dir, plugin))
+            VenvExistent(plugin, self.cons(plugin))
             if dir.exists() else
             VenvAbsent(plugin)
         )
@@ -123,6 +123,10 @@ class VenvFacade(Logging):
         self.log.debug(f'bootstrapping {plugin} in {venv_dir}')
         yield remove_dir(venv_dir)
         yield build(venv_dir, plugin)
+
+    def cons(self, plugin: RpluginSpec) -> Venv:
+        dir = self.dir / plugin.name
+        return cons_venv(dir, plugin)
 
     def package_state(self, venv: Venv) -> PackageState:
         return package_state_main(venv)
