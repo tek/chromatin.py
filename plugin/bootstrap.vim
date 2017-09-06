@@ -4,13 +4,18 @@ let s:venvs = get(g:, 'chromatin_venv_dir', s:default_venvs)
 let s:venv = s:venvs . '/chromatin'
 let s:script = fnamemodify(expand('<sfile>'), ':p:h:h') . '/scripts/bootstrap.py'
 let s:req = get(g:, 'chromatin_pip_req', 'chromatin')
+let s:py_exe = 'python3'
 
 function! ChromatinJobStderr(id, data, event) abort "{{{
   echoerr 'error in chromatin rpc job on channel ' . a:id . ': ' . string(a:data)
 endfunction "}}}
 
 function! BootstrapChromatin() abort "{{{
-  call jobstart(['python3', s:script, s:venv, s:req], { 'rpc': v:true, 'on_stderr': 'ChromatinJobStderr' })
+  try
+    call jobstart([s:py_exe, s:script, s:venv, s:req], { 'rpc': v:true, 'on_stderr': 'ChromatinJobStderr' })
+  catch //
+    echo v:exception
+  endtry
 endfunction "}}}
 
 command! BootstrapChromatin call BootstrapChromatin()

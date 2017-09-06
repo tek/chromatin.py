@@ -56,15 +56,19 @@ def bootstrap() -> None:
         echo('initializing chromatin...')
     start(run, ns.env_exe, installed)
 
+
+def amino_logger() -> None:
+    from amino.logging import amino_root_logger, amino_file_logging
+    amino_file_logging(amino_root_logger)
+    return amino_root_logger
+
 try:
     bootstrap()
     sys.exit(0)
 except Exception as e:
     echo(f'error while bootstrapping chromatin: {e}')
     try:
-        from amino.logging import amino_root_logger, amino_file_logging
-        amino_file_logging(amino_root_logger)
-        amino_root_logger.caught_exception_error('bootstrapping chromatin', e)
+        amino_logger().caught_exception_error('bootstrapping chromatin', e)
     except Exception:
         pass
     sys.exit(1)
