@@ -14,7 +14,7 @@ from amino import Path, Just, _, L, List
 from ribosome.test.integration.klk import later
 
 from chromatin.util import resources
-from chromatin.plugins.core.messages import AlreadyActive, Deactivated, Deactivate, Activated
+from chromatin.plugins.core.messages import AlreadyActive, Deactivated, Deactivate, Activated, SetupPlugins
 from chromatin.plugin import RpluginSpec
 
 from integration._support.rplugin_spec_base import RpluginSpecBase
@@ -113,8 +113,9 @@ class ActivateFlagSpec(ActivateSpec):
 
     @ensure_venv
     def deactivate(self) -> Expectation:
+        self.seen_message(SetupPlugins)
         self.seen_message(Activated)
-        plug_channel = lambda: self.state.active.head / _.channel | -1
+        plug_channel: Callable[[], int] = lambda: self.state.active.head / _.channel | -1
         later(kf(plug_channel).must(not_equal(-1)))
         channel = plug_channel()
         pid = L(self.vim.call)('jobpid', channel)

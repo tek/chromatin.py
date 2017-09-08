@@ -14,7 +14,6 @@ from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, Setu
                                              Deactivate, Reboot)
 
 
-@neovim.plugin
 class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
 
     def __init__(self, vim: neovim.api.Nvim) -> None:

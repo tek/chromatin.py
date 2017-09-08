@@ -12,7 +12,6 @@ amino_root_file_logging(logfile=logfile)
 name = 'flagellum'
 
 
-@neovim.plugin
 class NvimPlugin(NPlug, name=name, prefix='flag'):
 
     @command(sync=True)

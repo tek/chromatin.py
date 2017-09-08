@@ -1,9 +1,8 @@
 import os
 import neovim
-import inspect
 import time
 
-from amino import Path, List, Map, __, Maybe
+from amino import Path
 from amino.logging import amino_root_file_logging
 
 from ribosome import NvimPlugin as NPlug

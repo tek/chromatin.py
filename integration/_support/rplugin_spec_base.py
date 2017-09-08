@@ -4,6 +4,7 @@ from amino.test import temp_dir
 
 from kallikrein import Expectation, kf
 from kallikrein.matchers.typed import have_type
+from kallikrein.matchers.either import be_right
 from amino.test.path import fixture_path
 from amino import Maybe, Path, Nothing
 
@@ -24,14 +25,10 @@ class RpluginSpecBase(ChromatinPluginIntegrationSpec):
         self.vim.vars.set_p('autoreboot', False)
         self.vim.vars.set_p('handle_crm', False)
 
-    def command_exists(self, name: str, **kw) -> Expectation:
-        return later(kf(self.vim.command_exists, name).true, **kw)
-
-    def command_exists_not(self, name: str, **kw: Any) -> Expectation:
-        return later(kf(self.vim.command_exists, name).false, **kw)
-
     def plug_exists(self, name: str, **kw: Any) -> Expectation:
-        return self.command_exists(f'{name}Test', **kw)
+        cmd = f'{name}Test'
+        self.command_exists(cmd, **kw)
+        return kf(self.cmd_sync, cmd).must(be_right)
 
     def venv_existent(self, venvs: VenvFacade, plugin: RpluginSpec, timeout: float=None) -> Expectation:
         return later(kf(venvs.check, plugin).must(have_type(VenvExistent)), timeout=timeout, intval=.5)

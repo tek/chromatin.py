@@ -87,7 +87,7 @@ class PluginFunctions(Logging):
         yield NvimIO.pure(List(Activated(ActiveVenv(venv=venv, channel=channel, pid=pid))))
 
     @do
-    def activate_venv(self, venv: Venv) -> Generator[Either[str, NvimIO[Activated]], Any, None]:
+    def activate_venv(self, venv: Venv) -> Generator[Either[str, RunNvimIO], Any, None]:
         python_exe = yield venv.python_executable
         yield Right(RunNvimIO(self.start_host(venv, python_exe)))
 
