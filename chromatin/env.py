@@ -59,7 +59,7 @@ class Env(Logging, Data):
 
     @property
     def plugins_with_crm(self) -> List[RpluginSpec]:
-        return self.plugins.cons(self.chromatin_plugin)
+        return self.plugins.cons_m(self.chromatin_plugin)
 
     def plugin_by_name(self, name: str) -> Either[str, RpluginSpec]:
         return self.plugins_with_crm.find(lambda a: a.name == name).to_either(f'no plugin with name `{name}`')
