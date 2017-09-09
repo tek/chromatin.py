@@ -6,6 +6,7 @@ import subprocess
 
 nvim_inst = None
 
+
 def nvim(f: Callable) -> None:
     global nvim_inst
     if nvim_inst is None:
@@ -17,11 +18,12 @@ def nvim(f: Callable) -> None:
     if nvim_inst is not None:
         f(nvim_inst)
 
+
 def echo(msg: str) -> None:
     nvim(lambda a: a.command(f'echo "{msg}"'))
 
 
-def check_result(result) -> None:
+def check_result(result: subprocess.CompletedProcess) -> None:
     msg = str(result).replace('"', '')
     if result.returncode != 0:
         echo(f'subprocess failed: {msg}')

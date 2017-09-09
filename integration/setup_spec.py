@@ -147,7 +147,7 @@ class BootstrapSpec(RpluginSpecBase):
         self.command_exists('ChromatinStage1', timeout=20)
         self.cmd_sync('ChromatinStage1')
         self.cmd_sync('CrmSetupPlugins')
-        return self.plug_exists('Flag', timeout=15)
+        return self.plug_exists('Flag', timeout=20)
 
 
 # TODO move to `ActivateSpec`, change `ensure_env` to move the temp venv to `_temp` instead of using the `temp` dir
