@@ -237,7 +237,7 @@ class CoreTransitions(ChromatinTransitions):
     def updated(self) -> State[Env, List[Message]]:
         autoreboot = yield State.inspect(_.autoreboot)
         venv = self.msg.venv
-        need_reboot = autoreboot and venv.name != 'chromatin'
+        need_reboot = autoreboot & Boolean(venv.name != 'chromatin')
         reboot = need_reboot.l(Reboot(venv.name))
         yield State.pure(reboot.cons(Info(resources.updated_plugin(venv.name))))
 
