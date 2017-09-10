@@ -68,8 +68,8 @@ try:
     bootstrap()
     sys.exit(0)
 except Exception as e:
-    echo(f'error while bootstrapping chromatin: {e}')
     try:
+        echo(f'error while bootstrapping chromatin: {e}')
         amino_logger().caught_exception_error('bootstrapping chromatin', e)
     except Exception:
         pass
