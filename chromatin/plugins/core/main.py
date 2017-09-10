@@ -83,7 +83,8 @@ class PluginFunctions(Logging):
 
     @do
     def start_host(self, venv: Venv, python_exe: Path) -> Generator[NvimIO[Activated], Any, None]:
-        channel, pid = yield start_host(python_exe, venv.plugin_path)
+        debug = yield NvimIO(__.vars.pb('debug_pythonpath'))
+        channel, pid = yield start_host(python_exe, venv.plugin_path, debug.true)
         yield NvimIO.pure(List(Activated(ActiveVenv(venv=venv, channel=channel, pid=pid))))
 
     @do
