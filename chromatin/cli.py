@@ -39,7 +39,7 @@ def stage2(nvim: 'ribosome.NvimFacade') -> int:
         from chromatin.host import start_host
         python_exe = Path(sys.argv[1])
         plugin_path = Path(inspect.getfile(ChromatinNvimPlugin))
-        channel, pid = start_host(python_exe, plugin_path, True).attempt(nvim).get_or_raise
+        channel, pid = start_host(python_exe, plugin_path).attempt(nvim).get_or_raise
         handlers = rpc_handlers(ChromatinNvimPlugin)
         define_handlers(channel, handlers, 'chromatin', str(plugin_path)).attempt(nvim).get_or_raise
         installed = sys.argv[2] == '1' if len(sys.argv) > 2 else False
