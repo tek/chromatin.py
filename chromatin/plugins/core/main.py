@@ -3,13 +3,13 @@ from typing import Generator, TypeVar, Any
 from lenses import Lens, lens
 
 from amino.state import State, EitherState, StateT
-from amino import __, do, _, Either, L, Just, List, Right, Boolean, Lists, Maybe, curried, Nothing, Path, Id
+from amino import __, do, _, Either, Just, List, Right, Boolean, Lists, Maybe, curried, Nothing, Path, Id
 from amino.util.string import camelcaseify, camelcase
 from amino.boolean import true, false
 from amino.list import Nil
 
 from ribosome.machine import Message
-from ribosome.machine.base import io, RunIOsParallel, SubProcessSync
+from ribosome.machine.base import unit_nio, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
 from ribosome.nvim import NvimIO
@@ -192,7 +192,11 @@ class CoreTransitions(ChromatinTransitions):
     @do
     def stage_i(self) -> ESG:
         yield self.funcs.add_crm_venv()
-        msgs = List(io(__.vars.set_p('started', True)), io(__.vars.ensure_p('rplugins', [])), ReadConf().at(0.6).pub)
+        msgs = List(
+            unit_nio(__.vars.set_p('started', True)),
+            unit_nio(__.vars.ensure_p('rplugins', [])),
+            ReadConf().at(0.6).pub
+        )
         yield EitherState.pure(msgs)
 
     @trans.one(ReadConf, trans.est, trans.m)
