@@ -113,16 +113,19 @@ class PluginFunctions(Logging):
     def activate_all(self) -> STE:
         return self.activate_by_names(List())
 
-    def deactivate_venv(self, venv: ActiveVenv) -> State[Env, RunNvimIO]:
+    @do
+    def deactivate_venv(self, venv: ActiveVenv) -> Generator[State[Env, RunNvimIO], Any, None]:
         def undef(spec: RpcHandlerSpec) -> NvimIO[str]:
             return NvimIO.cmd(spec.undef_cmdline, verbose=True)
         @do
-        def run(env: Env) -> Generator[NvimIO[Any], Any, None]:
-            handlers = (env.handlers_for(venv.name) | Nil) / _.spec
+        def run(handlers: List[RpcHandlerSpec]) -> Generator[NvimIO[Any], Any, None]:
+            yield NvimIO.cmd(f'{camelcase(venv.name)}Quit')
             yield stop_host(venv.channel)
             yield handlers.traverse(undef, NvimIO)
             yield NvimIO.pure(List(Deactivated(venv)))
-        return State.inspect(run) / RunNvimIO
+        handlers = yield State.inspect(__.handlers_for(venv.name))
+        specs = (handlers | Nil) / _.spec
+        yield State.pure(RunNvimIO(run(specs)))
 
     def deactivate_multi(self, venvs: List[ActiveVenv]) -> State[Env, List[RunNvimIO]]:
         return venvs.traverse(self.deactivate_venv, State)

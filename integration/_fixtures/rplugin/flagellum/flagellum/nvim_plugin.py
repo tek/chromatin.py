@@ -45,4 +45,7 @@ class NvimPlugin(NPlug, name=name, prefix='flag'):
     def stage_4(self) -> None:
         self.log.info(f'{name} initialized')
 
+    def quit(self) -> None:
+        self.vim.vars.set_p('quit', 1)
+
 __all__ = ('NvimPlugin',)

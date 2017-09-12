@@ -123,8 +123,7 @@ class ActivateFlagSpec(ActivateSpec):
         self.cmd_sync('CrmDeactivate')
         self.seen_message(Deactivate)
         self.seen_message(Deactivated)
-        self.command_exists_not('FlagTest')
-        return kf(pid).must(be_right(0))
+        return self.command_exists_not('FlagTest') & self.var_becomes('flagellum_quit', 1) & kf(pid).must(be_right(0))
 
 
 class ActivateTwoSpec(ActivateSpec):
