@@ -56,7 +56,7 @@ def ensure_venv(f: Callable[[AS], Expectation]) -> Callable[[AS], Expectation]:
         plugins = self.names / setup
         self.cmd_sync('CrmSetupPlugins')
         for plugin in plugins:
-            self.venv_existent(venvs, plugin, 20)
+            self.venv_existent(venvs, plugin, 30)
             self.package_installed(venvs, plugin)
         self.check_exists()
         return f(self)

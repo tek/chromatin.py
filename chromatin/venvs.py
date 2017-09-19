@@ -1,14 +1,13 @@
 import abc
 import shutil
-import venv  # type: ignore
+import venv
 import pkg_resources
 
 from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean, Map, Either, Right
 from amino.util.string import ToStr
 from amino.boolean import true, false
 
-from ribosome import Job
-from ribosome.process import JobClient, Result
+from ribosome.process import JobClient, Result, Job
 
 from chromatin.plugin import RpluginSpec
 

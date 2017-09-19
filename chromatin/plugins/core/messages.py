@@ -1,4 +1,4 @@
-from ribosome.machine import message, json_message
+from ribosome.machine.message_base import message, json_message
 
 Start = message('Start')
 ReadConf = message('ReadConf')

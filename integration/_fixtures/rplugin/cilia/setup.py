@@ -9,6 +9,6 @@ setup(
     license='MIT',
     packages=find_packages(),
     install_requires=[
-        'ribosome~=11.0.1',
+        'ribosome~=11.1.2',
     ],
 )

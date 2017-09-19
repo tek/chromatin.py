@@ -8,13 +8,13 @@ from amino.util.string import camelcaseify, camelcase
 from amino.boolean import true, false
 from amino.list import Nil
 
-from ribosome.machine import Message
+from ribosome.machine.message_base import Message
 from ribosome.machine.base import unit_nio, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
 from ribosome.nvim import NvimIO
 from ribosome.machine.messages import Info, RunNvimIO
-from ribosome.rpc import define_handler, RpcHandlerSpec, DefinedHandler, define_handlers
+from ribosome.rpc import RpcHandlerSpec, DefinedHandler
 from ribosome.process import Result
 
 from chromatin.state import ChromatinTransitions, ChromatinComponent
@@ -62,6 +62,7 @@ class PluginFunctions(Logging):
             return Just((Done(venv) if result.success else Error(result.err)).pub)
         @do
         def install_proc(pvenv: PluginVenv) -> Generator[Either[str, SubProcessSync], Any, None]:
+            self.log.debug(f'installing {pvenv}')
             job = yield venv_facade.install(pvenv)
             yield Right(SubProcessSync(job, curried(trans_result)(pvenv.venv)))
         pvenvs = yield EitherState.inspect_f(lambda env: venvs.traverse(env.plugin_venv, Right))
@@ -82,15 +83,16 @@ class PluginFunctions(Logging):
         )
 
     @do
-    def start_host(self, venv: Venv, python_exe: Path) -> Generator[NvimIO[Activated], Any, None]:
+    def start_host(self, venv: Venv, python_exe: Path, bin_path: Path) -> Generator[NvimIO[Activated], Any, None]:
         debug = yield NvimIO(__.vars.pb('debug_pythonpath'))
-        channel, pid = yield start_host(python_exe, venv.plugin_path, debug.true)
+        channel, pid = yield start_host(python_exe, bin_path, venv.plugin_path, debug.true)
         yield NvimIO.pure(List(Activated(ActiveVenv(venv=venv, channel=channel, pid=pid))))
 
     @do
     def activate_venv(self, venv: Venv) -> Generator[Either[str, RunNvimIO], Any, None]:
         python_exe = yield venv.python_executable
-        yield Right(RunNvimIO(self.start_host(venv, python_exe)))
+        bin_path = yield venv.bin_path
+        yield Right(RunNvimIO(self.start_host(venv, python_exe, bin_path)))
 
     @do
     def activate_multi(self, venvs: List[Venv]) -> ESG:
@@ -152,12 +154,13 @@ class PluginFunctions(Logging):
         channel = active_venv.channel
         cname = camelcaseify(name)
         rpc_handlers_fun = f'{cname}RpcHandlers'
-        handlers_spec = RpcHandlerSpec.fun(1, rpc_handlers_fun, dict())
-        handler_rpc = yield define_handler(channel, handlers_spec, name, venv.plugin_path)
         result = yield NvimIO.call_once_defined(rpc_handlers_fun, timeout=3)
-        handler_specs = Lists.wrap(result).flat_map(RpcHandlerSpec.decode)
-        handlers = yield define_handlers(channel, handler_specs, name, venv.plugin_path)
-        yield NvimIO.pure(handlers.cons(handler_rpc))
+        handlers = (
+            Lists.wrap(result)
+            .flat_map(RpcHandlerSpec.decode)
+            .map(lambda spec: DefinedHandler(spec=spec, channel=channel))
+        )
+        yield NvimIO.pure(handlers)
 
     @do
     def add_plugins(self, plugins: List[RpluginSpec]) -> ESG:

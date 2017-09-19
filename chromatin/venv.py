@@ -44,6 +44,7 @@ class PluginVenv(Record):
     def name(self) -> str:
         return self.plugin.name
 
+    @property
     def _str_extra(self) -> List[Any]:
         return List(self.venv, self.plugin)
 

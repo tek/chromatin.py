@@ -5,14 +5,15 @@ from amino import Path
 from amino.logging import amino_root_file_logging
 
 from ribosome import NvimPlugin as NPlug
-from ribosome.request import command, function
+from ribosome.request.command import command
+from ribosome.request.function import function
 
 logfile = Path(os.environ['RIBOSOME_LOG_FILE'])
 amino_root_file_logging(logfile=logfile)
 name = 'flagellum'
 
 
-class NvimPlugin(NPlug, name=name, prefix='flag'):
+class NvimPlugin(NPlug, pname=name, prefix='flag'):
 
     @command(sync=True)
     def flag_test(self) -> None:

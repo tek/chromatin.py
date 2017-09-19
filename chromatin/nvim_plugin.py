@@ -5,8 +5,7 @@ import neovim
 
 from amino import List
 
-from ribosome import NvimStatePlugin
-from ribosome.request import msg_command, json_msg_command
+from ribosome import NvimStatePlugin, msg_command, json_msg_command
 from ribosome.nvim import NvimFacade
 
 from chromatin.main import Chromatin
@@ -14,7 +13,7 @@ from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, Setu
                                              Deactivate, Reboot)
 
 
-class ChromatinNvimPlugin(NvimStatePlugin, name='chromatin', prefix='crm'):
+class ChromatinNvimPlugin(NvimStatePlugin, pname='chromatin', prefix='crm'):
 
     def __init__(self, vim: neovim.api.Nvim) -> None:
         super().__init__(NvimFacade(vim, 'chromatin'))

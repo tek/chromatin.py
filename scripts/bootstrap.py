@@ -23,6 +23,12 @@ def echo(msg: str) -> None:
     nvim(lambda a: a.command(f'echo "{msg}"'))
 
 
+def amino_logger() -> None:
+    from amino.logging import amino_root_logger, amino_file_logging
+    amino_file_logging(amino_root_logger)
+    return amino_root_logger
+
+
 def check_result(result: subprocess.CompletedProcess) -> None:
     msg = str(result).replace('"', '')
     if result.returncode != 0:
@@ -40,8 +46,8 @@ def install(venv_dir: str, builder: venv.EnvBuilder, bin_path: Path) -> None:
     check_result(result)
 
 
-def start(run: Path, exe: str, installed: int) -> None:
-    result = subprocess.run([exe, str(run), exe, str(installed)], env=dict())
+def start(run: Path, exe: str, bin: str, installed: int) -> None:
+    result = subprocess.run([exe, str(run), exe, bin, str(installed)], env=dict())
     check_result(result)
 
 
@@ -56,13 +62,7 @@ def bootstrap() -> None:
         installed = 1
         install(venv_dir, builder, bin)
         echo('initializing chromatin...')
-    start(run, ns.env_exe, installed)
-
-
-def amino_logger() -> None:
-    from amino.logging import amino_root_logger, amino_file_logging
-    amino_file_logging(amino_root_logger)
-    return amino_root_logger
+    start(run, ns.env_exe, ns.bin_path, installed)
 
 try:
     bootstrap()

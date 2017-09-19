@@ -5,20 +5,19 @@ import time
 from amino import Path
 from amino.logging import amino_root_file_logging
 
-from ribosome import NvimPlugin as NPlug
-from ribosome.nvim import NvimFacade
-from ribosome.request import command
+from ribosome import AutoPlugin
+from ribosome.request.command import command
+from ribosome.settings import Config
 
 logfile = Path(os.environ['RIBOSOME_LOG_FILE'])
 amino_root_file_logging(logfile=logfile)
 name = 'cilia'
 
+config = Config(name=name, prefix='cil')
+
 
 @neovim.plugin
-class NvimPlugin(NPlug, name=name, prefix='cil'):
-
-    def __init__(self, vim: neovim.api.Nvim) -> None:
-        super().__init__(NvimFacade(vim, name))
+class NvimPlugin(AutoPlugin):
 
     @command(sync=True)
     def cil_test(self) -> None:
