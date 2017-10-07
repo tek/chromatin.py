@@ -1,6 +1,5 @@
 from ribosome.machine.message_base import message, json_message
 
-Start = message('Start')
 ReadConf = message('ReadConf')
 AddPlugin = json_message('AddPlugin', 'spec')
 ShowPlugins = message('ShowPlugins')
@@ -23,7 +22,7 @@ UpdatePlugins = message('UpdatePlugins', varargs='plugins')
 Reboot = message('Reboot', varargs='plugins')
 DefinedHandlers = message('DefinedHandlers', 'venv', 'handlers')
 
-__all__ = ('ReadConf', 'Start', 'AddPlugin', 'ShowPlugins', 'SetupPlugins', 'SetupVenvs', 'InstallMissing',
-           'AddVenv', 'IsInstalled', 'Installed', 'Updated', 'Activate', 'Deactivate', 'Activated', 'Deactivated',
-           'PostSetup', 'AlreadyActive', 'ActivationComplete', 'InitializationComplete', 'UpdatePlugins', 'Reboot',
+__all__ = ('ReadConf', 'AddPlugin', 'ShowPlugins', 'SetupPlugins', 'SetupVenvs', 'InstallMissing', 'AddVenv',
+           'IsInstalled', 'Installed', 'Updated', 'Activate', 'Deactivate', 'Activated', 'Deactivated', 'PostSetup',
+           'AlreadyActive', 'ActivationComplete', 'InitializationComplete', 'UpdatePlugins', 'Reboot',
            'DefinedHandlers')

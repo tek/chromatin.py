@@ -3,14 +3,14 @@ import neovim
 import time
 
 from amino import Path
-from amino.logging import amino_root_file_logging
+from amino.logging import amino_root_file_logging, TEST
 
 from ribosome import AutoPlugin
 from ribosome.request.command import command
 from ribosome.settings import Config
 
 logfile = Path(os.environ['RIBOSOME_LOG_FILE'])
-amino_root_file_logging(logfile=logfile)
+amino_root_file_logging(logfile=logfile, level=TEST)
 name = 'cilia'
 
 config = Config(name=name, prefix='cil')

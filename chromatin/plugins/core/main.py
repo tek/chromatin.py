@@ -13,12 +13,13 @@ from ribosome.machine.base import unit_nio, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
 from ribosome.nvim import NvimIO
-from ribosome.machine.messages import Info, RunNvimIO
+from ribosome.machine.messages import Info, RunNvimIO, Stage1
 from ribosome.rpc import RpcHandlerSpec, DefinedHandler
 from ribosome.process import Result
+from ribosome.machine.state import Component
+from ribosome.logging import print_ribo_log_info
 
-from chromatin.state import ChromatinTransitions, ChromatinComponent
-from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, SetupVenvs, InstallMissing,
+from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, SetupPlugins, SetupVenvs, InstallMissing,
                                              AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
                                              Updated, Reboot, Activate, AlreadyActive, ReadConf, Deactivate,
                                              Deactivated, DefinedHandlers, ActivationComplete, InitializationComplete)
@@ -189,13 +190,13 @@ class PluginFunctions(Logging):
             yield State.modify(__.setter.chromatin_venv(Just(venv)))
 
 
-class CoreTransitions(ChromatinTransitions):
+class Core(Component):
 
     @property
     def funcs(self) -> PluginFunctions:
         return PluginFunctions()
 
-    @trans.multi(Start, trans.est)
+    @trans.multi(Stage1, trans.st)
     @do
     def stage_i(self) -> ESG:
         yield self.funcs.add_crm_venv()
@@ -206,7 +207,7 @@ class CoreTransitions(ChromatinTransitions):
         )
         yield EitherState.pure(msgs)
 
-    @trans.one(ReadConf, trans.est, trans.m)
+    @trans.one(ReadConf, trans.st, trans.m)
     def read_conf(self) -> EitherState[Env, Maybe[Message]]:
         return self.funcs.read_conf()
 
@@ -230,11 +231,11 @@ class CoreTransitions(ChromatinTransitions):
     def setup_plugins(self) -> List[Message]:
         return List(SetupVenvs(), InstallMissing().at(.9).pub, PostSetup().at(.95).pub)
 
-    @trans.multi(SetupVenvs, trans.est)
+    @trans.multi(SetupVenvs, trans.st)
     def setup_venvs(self) -> EitherState[Env, List[Message]]:
         return self.funcs.setup_venvs()
 
-    @trans.multi(InstallMissing, trans.est)
+    @trans.multi(InstallMissing, trans.st)
     def install_missing(self) -> EitherState[Env, List[Message]]:
         return self.funcs.install_missing()
 
@@ -256,7 +257,7 @@ class CoreTransitions(ChromatinTransitions):
     def is_installed(self) -> State[Env, None]:
         return State.modify(__.add_installed(self.msg.venv))
 
-    @trans.multi(PostSetup, trans.est)
+    @trans.multi(PostSetup, trans.st)
     def post_setup(self) -> EitherState[Env, List[Message]]:
         return self.funcs.activate_newly_installed()
 
@@ -264,7 +265,7 @@ class CoreTransitions(ChromatinTransitions):
     def add_venv(self) -> State[Env, None]:
         return State.modify(__.add_venv(self.msg.venv))
 
-    @trans.multi(Activate, trans.est)
+    @trans.multi(Activate, trans.st)
     def activate(self) -> EitherState[Env, List[Message]]:
         return self.funcs.activate_by_names(self.msg.plugins)
 
@@ -313,7 +314,7 @@ class CoreTransitions(ChromatinTransitions):
     def defined_handlers(self) -> State[Env, None]:
         return State.modify(__.add_handlers(self.msg.venv, self.msg.handlers))
 
-    @trans.multi(UpdatePlugins, trans.est)
+    @trans.multi(UpdatePlugins, trans.st)
     def update_plugins(self) -> State[Env, List[Message]]:
         return self.funcs.update_plugins(self.msg.plugins)
 
@@ -328,8 +329,4 @@ class CoreTransitions(ChromatinTransitions):
             State.pure(Nothing)
         )
 
-
-class Plugin(ChromatinComponent):
-    Transitions = CoreTransitions
-
-__all__ = ('Plugin',)
+__all__ = ('Core',)

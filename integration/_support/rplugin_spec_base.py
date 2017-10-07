@@ -14,10 +14,10 @@ from chromatin.venvs import VenvFacade, VenvExistent
 from chromatin.plugin import RpluginSpec
 from chromatin.venv import Venv
 
-from integration._support.base import ChromatinPluginIntegrationSpec
+from integration._support.base import DefaultSpec
 
 
-class RpluginSpecBase(ChromatinPluginIntegrationSpec):
+class RpluginSpecBase(DefaultSpec):
 
     def _pre_start(self) -> None:
         super()._pre_start()

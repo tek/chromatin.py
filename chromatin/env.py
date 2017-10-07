@@ -1,9 +1,9 @@
 from typing import Any, Generator
 
-from ribosome.data import Data
 from ribosome.record import dfield, list_field, map_field, maybe_field
 from ribosome.nvim import NvimFacade, AsyncVimProxy
 from ribosome.rpc import DefinedHandler
+from ribosome.settings import AutoData
 
 from amino import List, _, Either, Path, Try, Right, do, Boolean, Map, __
 from amino.boolean import true
@@ -27,7 +27,7 @@ def filter_venvs_by_name(venvs: List[Venv], names: List[str]) -> List[Venv]:
     return venvs if names.empty else venvs.filter(lambda v: v.name in names)
 
 
-class Env(Logging, Data):
+class Env(Logging, AutoData):
     vim_facade = maybe_field((NvimFacade, AsyncVimProxy))
     initialized = dfield(False)
     plugins = list_field(RpluginSpec)

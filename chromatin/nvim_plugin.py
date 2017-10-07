@@ -1,51 +1,24 @@
-import time
-import threading
+from amino import List, Map
 
-import neovim
+from ribosome import AutoPlugin, msg_command, json_msg_command
+from ribosome.settings import Config, PluginSettings
 
-from amino import List
+from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, SetupPlugins, UpdatePlugins, Activate, Deactivate,
+                                             Reboot)
+from chromatin.env import Env
+from chromatin.plugins.core.main import Core
 
-from ribosome import NvimStatePlugin, msg_command, json_msg_command
-from ribosome.nvim import NvimFacade
+config: Config = Config(
+    name='chromatin',
+    prefix='crm',
+    state_type=Env,
+    components=Map(core=Core),
+    settings=PluginSettings('chromatin'),
+    core_components=List('core'),
+)
 
-from chromatin.main import Chromatin
-from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, Start, SetupPlugins, UpdatePlugins, Activate,
-                                             Deactivate, Reboot)
 
-
-class ChromatinNvimPlugin(NvimStatePlugin, pname='chromatin', prefix='crm'):
-
-    def __init__(self, vim: neovim.api.Nvim) -> None:
-        super().__init__(NvimFacade(vim, 'chromatin'))
-        self.initialized = False
-        self.chromatin: Chromatin = None
-
-    @property
-    def _default_plugins(self) -> List[str]:
-        return List()
-
-    def stage_1(self) -> None:
-        plugins = self.vim.vars.pl('plugins') | self._default_plugins
-        self.chromatin = Chromatin(self.vim.proxy, plugins)
-        self.chromatin.start()
-        self.chromatin.wait_for_running()
-        self.chromatin.send(Start())
-
-    def state(self) -> Chromatin:
-        if self.chromatin is None and not self.initialized:
-            self.initialized = True
-            self.stage_1()
-        self.wait_for_startup()
-        return self.chromatin
-
-    def wait_for_startup(self) -> bool:
-        start = time.time()
-        while self.chromatin is None and time.time() - start < 5:
-            time.sleep(.1)
-        if self.chromatin is not None:
-            self.chromatin.wait_for_running()
-            time.sleep(.1)
-        return self.chromatin is not None
+class ChromatinNvimPlugin(AutoPlugin):
 
     @json_msg_command(AddPlugin)
     def cram(self) -> None:
@@ -75,9 +48,9 @@ class ChromatinNvimPlugin(NvimStatePlugin, pname='chromatin', prefix='crm'):
     def crm_update(self) -> None:
         pass
 
-    @neovim.autocmd('VimEnter')
-    def vim_enter(self):
-        threading.Thread(target=self.state).start()
+    # @neovim.autocmd('VimEnter')
+    # def vim_enter(self):
+    #     threading.Thread(target=self.state).start()
 
 
-__all__ = ('ChromatinNvimPlugin',)
+__all__ = ('ChromatinNvimPlugin', 'config')

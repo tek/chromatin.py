@@ -1,6 +1,6 @@
 from amino import Right, Either
 
-from ribosome.test.integration.klk import ExternalIntegrationKlkSpec, PluginIntegrationKlkSpec
+from ribosome.test.integration.klk import AutoPluginIntegrationKlkSpec
 
 from chromatin.logging import Logging
 from chromatin.nvim_plugin import ChromatinNvimPlugin
@@ -17,20 +17,24 @@ class IntegrationCommon:
         return Right(ChromatinNvimPlugin)
 
 
-class ChromatinIntegrationSpec(IntegrationCommon, ExternalIntegrationKlkSpec):
+class ChromatinPluginIntegrationSpec(IntegrationCommon, AutoPluginIntegrationKlkSpec, Logging):
 
     def _start_plugin(self) -> None:
-        self.plugin.start_plugin()
-        self._wait(.05)
-        self._wait_for(lambda: self.vim.vars.p('started').present)
-
-
-class ChromatinPluginIntegrationSpec(IntegrationCommon, PluginIntegrationKlkSpec, Logging):
-
-    def _start_plugin(self) -> None:
-        self._debug = True
         if self.autostart_plugin:
-            self.vim.cmd_sync('ChromatinStage1')
+            self.vim.cmd_once_defined('ChromatinStage1')
             self.pvar_becomes('started', True)
 
-__all__ = ('ChromatinIntegrationSpec', 'ChromatinPluginIntegrationSpec')
+
+class DefaultSpec(ChromatinPluginIntegrationSpec):
+
+    def config_name(self) -> str:
+        return 'config'
+
+    def module(self) -> str:
+        return 'chromatin.nvim_plugin'
+
+    @property
+    def plugin_prefix(self) -> str:
+        return 'Crm'
+
+__all__ = ('ChromatinPluginIntegrationSpec', 'DefaultSpec')

@@ -2,14 +2,14 @@ import os
 import neovim
 
 from amino import Path
-from amino.logging import amino_root_file_logging
+from amino.logging import amino_root_file_logging, TEST
 
 from ribosome import NvimPlugin as NPlug
 from ribosome.request.command import command
 from ribosome.request.function import function
 
 logfile = Path(os.environ['RIBOSOME_LOG_FILE'])
-amino_root_file_logging(logfile=logfile)
+amino_root_file_logging(logfile=logfile, level=TEST)
 name = 'flagellum'
 
 
