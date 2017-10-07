@@ -1,0 +1,3 @@
+[submodule "chromatin.nvim"]
+	path = chromatin.nvim
+	url = git@github.com:tek/chromatin.nvim
