@@ -17,7 +17,6 @@ from ribosome.machine.messages import Info, RunNvimIO, Stage1
 from ribosome.rpc import RpcHandlerSpec, DefinedHandler
 from ribosome.process import Result
 from ribosome.machine.state import Component
-from ribosome.logging import print_ribo_log_info
 
 from chromatin.plugins.core.messages import (AddPlugin, ShowPlugins, SetupPlugins, SetupVenvs, InstallMissing,
                                              AddVenv, IsInstalled, Activated, PostSetup, Installed, UpdatePlugins,
