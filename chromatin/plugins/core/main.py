@@ -13,7 +13,7 @@ from ribosome.machine.base import unit_nio, RunIOsParallel, SubProcessSync
 from ribosome.machine.transition import Error
 from ribosome.machine import trans
 from ribosome.nvim import NvimIO
-from ribosome.machine.messages import Info, RunNvimIO, Stage1
+from ribosome.machine.messages import Info, RunNvimIO, Stage1, Quit
 from ribosome.rpc import RpcHandlerSpec, DefinedHandler
 from ribosome.process import Result
 from ribosome.machine.state import Component
@@ -205,6 +205,10 @@ class Core(Component):
             ReadConf().at(0.6).pub
         )
         yield EitherState.pure(msgs)
+
+    @trans.unit(Quit)
+    def quit(self) -> None:
+        pass
 
     @trans.one(ReadConf, trans.st, trans.m)
     def read_conf(self) -> EitherState[Env, Maybe[Message]]:
