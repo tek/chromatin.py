@@ -48,9 +48,4 @@ class ChromatinNvimPlugin(AutoPlugin):
     def crm_update(self) -> None:
         pass
 
-    # @neovim.autocmd('VimEnter')
-    # def vim_enter(self):
-    #     threading.Thread(target=self.state).start()
-
-
 __all__ = ('ChromatinNvimPlugin', 'config')

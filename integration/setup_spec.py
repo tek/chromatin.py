@@ -142,7 +142,7 @@ class BootstrapSpec(RpluginSpecBase):
 
     def bootstrap(self) -> Expectation:
         self.command_exists_not('Cram')
-        self.vim.runtime('plugin/bootstrap')
+        self.vim.runtime('chromatin.nvim/plugin/bootstrap')
         self.cmd('BootstrapChromatin')
         self.command_exists('ChromatinStage1', timeout=20)
         self.cmd_sync('ChromatinStage1')
