@@ -32,7 +32,13 @@ def run() -> int:
             raise
     except Exception:
         msg = traceback.format_exc()
-        print(msg, file=sys.stderr)
+        try:
+            import amino
+        except Exception as e:
+            pass
+        else:
+            if amino.development:
+                print(msg, file=sys.stderr)
         return 1
 
 
@@ -56,7 +62,9 @@ def stage2(nvim: 'ribosome.NvimFacade') -> int:
         ribo_log.debug('starting chromatin, handlers defined')
         if installed:
             ribo_log.info('chromatin initialized. installing plugins...')
-        nvim.cmd('ChromatinStage1')
+        def error(a: str) -> None:
+            raise Exception(f'failed to initialize chromatin: {a}')
+        nvim.cmd_once_defined('ChromatinStage1').leffect(error)
         return 0
     except Exception as e:
         ribo_log.caught_exception_error('initializing chromatin', e)
