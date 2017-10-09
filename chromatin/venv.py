@@ -29,7 +29,7 @@ class Venv(Record):
 
     @property
     def plugin_path(self) -> Path:
-        return self.site / self.name / 'nvim_plugin.py'
+        return self.site / self.name / '__init__.py'
 
 
 class PluginVenv(Record):

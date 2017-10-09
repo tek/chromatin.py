@@ -1,9 +1,6 @@
-from amino import Right, Either
-
 from ribosome.test.integration.klk import AutoPluginIntegrationKlkSpec
 
 from chromatin.logging import Logging
-from chromatin.nvim_plugin import ChromatinNvimPlugin
 
 
 class IntegrationCommon:
@@ -11,10 +8,6 @@ class IntegrationCommon:
     @property
     def _prefix(self) -> str:
         return 'chromatin'
-
-    @property
-    def plugin_class(self) -> Either[str, type]:
-        return Right(ChromatinNvimPlugin)
 
 
 class ChromatinPluginIntegrationSpec(IntegrationCommon, AutoPluginIntegrationKlkSpec, Logging):
@@ -31,7 +24,7 @@ class DefaultSpec(ChromatinPluginIntegrationSpec):
         return 'config'
 
     def module(self) -> str:
-        return 'chromatin.nvim_plugin'
+        return 'chromatin'
 
     @property
     def plugin_prefix(self) -> str:

@@ -47,7 +47,7 @@ def stage2(nvim: 'ribosome.NvimFacade') -> int:
         from amino import Path, Lists
         from ribosome.logging import ribo_log
         from ribosome.rpc import rpc_handlers, define_handlers
-        from chromatin.nvim_plugin import ChromatinNvimPlugin
+        from chromatin import ChromatinNvimPlugin
         from chromatin.host import start_host
         ex, bp, ins = Lists.wrap(sys.argv).lift_all(1, 2, 3).get_or_fail(f'invalid arg count for `crm_run`: {sys.argv}')
         python_exe = Path(ex)
