@@ -1,43 +1,58 @@
-from typing import Any, Generator
+from typing import Any
 
-from ribosome.record import dfield, list_field, map_field, maybe_field
-from ribosome.nvim import NvimFacade, AsyncVimProxy
-from ribosome.rpc import DefinedHandler
-from ribosome.settings import AutoData
+from ribosome.request.rpc import DefinedHandler
+from ribosome.config import Data, Config, PluginSettings
+from ribosome.nvim import NvimIO
 
-from amino import List, _, Either, Path, Try, Right, do, Boolean, Map, __
-from amino.boolean import true
+from amino import List, _, Either, Path, Right, do, Boolean, Map, __, Maybe, Nil, Nothing
+from amino.boolean import true, false
+from amino.dat import Dat
+from amino.do import Do
 
 from chromatin.logging import Logging
 from chromatin.plugin import RpluginSpec
 from chromatin.venv import Venv, ActiveVenv, PluginVenv
 from chromatin.venvs import VenvFacade
-from chromatin.util.resources import xdg_cache_home, create_venv_dir_error
-
-
-@do
-def _default_venv_dir() -> Generator[Either[str, Path], Any, None]:
-    xdg_cache_path = xdg_cache_home.value / Path | (Path.home() / '.cache')
-    venv_dir = xdg_cache_path / 'chromatin' / 'venvs'
-    yield Try(venv_dir.mkdir, parents=True, exist_ok=True).lmap(lambda a: create_venv_dir_error(venv_dir))
-    yield Right(venv_dir)
+from chromatin.settings import CrmSettings
 
 
 def filter_venvs_by_name(venvs: List[Venv], names: List[str]) -> List[Venv]:
     return venvs if names.empty else venvs.filter(lambda v: v.name in names)
 
 
-class Env(Logging, AutoData):
-    vim_facade = maybe_field((NvimFacade, AsyncVimProxy))
-    initialized = dfield(False)
-    plugins = list_field(RpluginSpec)
-    chromatin_plugin = maybe_field(RpluginSpec)
-    chromatin_venv = maybe_field(Venv)
-    venvs = map_field()
-    installed = list_field(Venv)
-    active = list_field(ActiveVenv)
-    uninitialized = list_field(ActiveVenv)
-    handlers = map_field()
+class Env(Dat['Env'], Logging, Data):
+
+    @staticmethod
+    def cons(config: Config[PluginSettings, 'Env']) -> 'Env':
+        return Env(config, false, Nil, Nothing, Nothing, Map(), Nil, Nil, Nil, Map())
+
+    def __init__(
+            self,
+            config: Config,
+            initialized: Boolean,
+            plugins: List[RpluginSpec],
+            chromatin_plugin: Maybe[RpluginSpec],
+            chromatin_venv: Maybe[Venv],
+            venvs: Map[str, Venv],
+            installed: List[Venv],
+            active: List[ActiveVenv],
+            uninitialized: List[ActiveVenv],
+            handlers: Map[str, DefinedHandler],
+    ) -> None:
+        self.config = config
+        self.initialized = initialized
+        self.plugins = plugins
+        self.chromatin_plugin = chromatin_plugin
+        self.chromatin_venv = chromatin_venv
+        self.venvs = venvs
+        self.installed = installed
+        self.active = active
+        self.uninitialized = uninitialized
+        self.handlers = handlers
+
+    @property
+    def settings(self) -> CrmSettings:
+        return self.config.settings
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
         return self.append1.plugins(RpluginSpec(name=name, spec=spec))
@@ -52,7 +67,7 @@ class Env(Logging, AutoData):
         return self.plugins.map(format).cons('Configured plugins:')
 
     def add_venv(self, venv: Venv) -> 'Env':
-        return self.modder.venvs(_ + (venv.name, venv))
+        return self.append.venvs((venv.name, venv))
 
     def add_installed(self, venv: Venv) -> 'Env':
         return self.append1.installed(venv)
@@ -64,8 +79,8 @@ class Env(Logging, AutoData):
     def plugin_by_name(self, name: str) -> Either[str, RpluginSpec]:
         return self.plugins_with_crm.find(lambda a: a.name == name).to_either(f'no plugin with name `{name}`')
 
-    @do
-    def plugin_venv(self, venv: Venv) -> Either[str, PluginVenv]:
+    @do(Either[str, PluginVenv])
+    def plugin_venv(self, venv: Venv) -> Do:
         plugin = yield self.plugin_by_name(venv.name)
         yield Right(PluginVenv(venv=venv, plugin=plugin))
 
@@ -73,30 +88,32 @@ class Env(Logging, AutoData):
         return self.venvs.v.filter_not(venvs.package_installed)
 
     @property
-    @do
-    def missing(self) -> Either[str, List[Venv]]:
-        venv_facade = yield self.venv_facade
-        yield Right(self.missing_in(venv_facade))
+    def missing(self) -> NvimIO[List[Venv]]:
+        return self.venv_facade / self.missing_in
 
     @property
     def _str_extra(self) -> List[Any]:
         return List(self.plugins, self.venvs)
 
     @property
-    def venv_dir(self) -> Either[str, Path]:
-        return self.vim.vars.ppath('venv_dir').o(_default_venv_dir)
+    def rplugins(self) -> NvimIO[List[Map[str, str]]]:
+        return self.settings.rplugins.value_or_default
 
     @property
-    def venv_facade(self) -> Either[str, VenvFacade]:
+    def venv_dir(self) -> NvimIO[Path]:
+        return self.settings.venv_dir.value_or_default
+
+    @property
+    def venv_facade(self) -> NvimIO[VenvFacade]:
         return self.venv_dir / VenvFacade
 
     @property
-    def want_init(self) -> Boolean:
-        return self.vim.vars.pb('autostart') | true
+    def autostart(self) -> NvimIO[Boolean]:
+        return self.settings.autostart.value_or_default
 
     @property
-    def handle_crm(self) -> Boolean:
-        return self.vim.vars.pb('handle_crm') | true
+    def handle_crm(self) -> NvimIO[Boolean]:
+        return self.settings.handle_crm.value_or_default
 
     @property
     def autoreboot(self) -> Boolean:
@@ -114,7 +131,7 @@ class Env(Logging, AutoData):
         return self.append1.active(venv).append1.uninitialized(venv)
 
     def initialization_complete(self) -> 'Env':
-        return self.setter.uninitialized(List())
+        return self.set.uninitialized(List())
 
     def deactivate_venv(self, venv: ActiveVenv) -> 'Env':
         return self.modder.active(__.without(venv))
@@ -124,13 +141,6 @@ class Env(Logging, AutoData):
 
     def active_by_name(self, names: List[str]) -> List[str]:
         return self.active.filter(lambda v: v.name in names)
-
-    def to_map(self) -> Map[str, Any]:
-        return super().to_map() - 'vim_facade'
-
-    @property
-    def vim(self) -> NvimFacade:
-        return self.vim_facade | (lambda: NvimFacade(None, 'no vim was set in `Env`'))
 
     def add_handlers(self, venv: Venv, handlers: List[DefinedHandler]) -> 'Env':
         return self.modder.handlers(_ + (venv.name, handlers))

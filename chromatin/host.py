@@ -5,6 +5,7 @@ from ribosome.nvim import NvimIO
 from ribosome.logging import ribo_log
 
 from amino import Path, do, __, List
+from amino.do import Do
 
 
 stderr_handler_name = 'ChromatinJobStderr'
@@ -20,15 +21,15 @@ def host_cmdline(python_exe: Path, bin_path: Path, plug: Path, debug: bool) -> t
     return [str(python_exe)] + debug_option + args
 
 
-@do
-def define_stderr_handler() -> NvimIO[None]:
+@do(NvimIO[None])
+def define_stderr_handler() -> Do:
     exists = yield NvimIO(__.function_exists(stderr_handler_name))
     if not exists:
         yield NvimIO(__.define_function(stderr_handler_name, List('id', 'data', 'event'), stderr_handler_body))
 
 
-@do
-def start_host(python_exe: Path, bin_path: Path, plugin_path: Path, debug: bool=False) -> NvimIO[Tuple[int, int]]:
+@do(NvimIO[Tuple[int, int]])
+def start_host(python_exe: Path, bin_path: Path, plugin_path: Path, debug: bool=False) -> Do:
     yield define_stderr_handler()
     cmdline = host_cmdline(python_exe, bin_path, plugin_path, debug)
     ribo_log.debug(f'starting host: {cmdline}')

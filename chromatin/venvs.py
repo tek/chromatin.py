@@ -6,6 +6,7 @@ import pkg_resources
 from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean, Map, Either, Right
 from amino.util.string import ToStr
 from amino.boolean import true, false
+from amino.do import Do
 
 from ribosome.process import JobClient, Result, Job
 
@@ -35,14 +36,14 @@ class VenvAbsent(VenvState):
     pass
 
 
-@do
-def remove_dir(dir: Path) -> IO[None]:
+@do(IO[None])
+def remove_dir(dir: Path) -> Do:
     exists = yield IO.delay(dir.exists)
     yield IO.delay(shutil.rmtree, dir) if exists else IO.pure(None)
 
 
-@do
-def build(dir: Path, plugin: RpluginSpec) -> IO[Venv]:
+@do(IO[Venv])
+def build(dir: Path, plugin: RpluginSpec) -> Do:
     builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
     context = yield IO.delay(builder.ensure_directories, str(dir))
     yield IO.delay(builder.create_configuration, context)
@@ -116,8 +117,8 @@ class VenvFacade(Logging):
             VenvAbsent(plugin)
         )
 
-    @do
-    def bootstrap(self, plugin: RpluginSpec) -> IO[Venv]:
+    @do(IO[Venv])
+    def bootstrap(self, plugin: RpluginSpec) -> Do:
         venv_dir = self.dir / plugin.name
         self.log.debug(f'bootstrapping {plugin} in {venv_dir}')
         yield remove_dir(venv_dir)
@@ -133,8 +134,8 @@ class VenvFacade(Logging):
     def package_installed(self, venv: Venv) -> Boolean:
         return self.package_state(venv).exists
 
-    @do
-    def install(self, pvenv: PluginVenv) -> Either[str, Future[Result]]:
+    @do(Either[str, Future[Result]])
+    def install(self, pvenv: PluginVenv) -> Do:
         venv = pvenv.venv
         self.log.debug(f'installing {venv}')
         bin_path = yield venv.bin_path

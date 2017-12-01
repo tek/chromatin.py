@@ -1,18 +1,25 @@
 from types import SimpleNamespace
 from typing import Any
 
-from amino import Path, List, Try
-
-from ribosome.record import Record, field, either_field, path_field, int_field, str_field
+from amino import Path, List, Try, Either
+from amino.dat import Dat
 
 from chromatin.plugin import RpluginSpec
 
 
-class Venv(Record):
-    name = str_field()
-    dir = path_field()
-    python_executable = either_field(Path, factory=Path)
-    bin_path = either_field(Path, factory=Path)
+class Venv(Dat['Venv']):
+
+    def __init__(
+            self,
+            name: str,
+            dir: Path,
+            python_executable: Either[str, Path],
+            bin_path: Either[str, Path]
+    ) -> None:
+        self.name = name
+        self.dir = dir
+        self.python_executable = python_executable
+        self.bin_path = bin_path
 
     @staticmethod
     def from_ns(dir: Path, plugin: RpluginSpec, context: SimpleNamespace) -> 'Venv':
@@ -32,9 +39,11 @@ class Venv(Record):
         return self.site / self.name / '__init__.py'
 
 
-class PluginVenv(Record):
-    venv = field(Venv)
-    plugin = field(RpluginSpec)
+class PluginVenv(Dat['PluginVenv']):
+
+    def __init__(self, venv: Venv, plugin: RpluginSpec) -> None:
+        self.venv = venv
+        self.plugin = plugin
 
     @property
     def req(self) -> str:
@@ -49,10 +58,12 @@ class PluginVenv(Record):
         return List(self.venv, self.plugin)
 
 
-class ActiveVenv(Record):
-    venv = field(Venv)
-    channel = int_field()
-    pid = int_field()
+class ActiveVenv(Dat['ActiveVenv']):
+
+    def __init__(self, venv: Venv, channel: int, pid: int) -> None:
+        self.venv = venv
+        self.channel = channel
+        self.pid = pid
 
     @property
     def name(self) -> str:

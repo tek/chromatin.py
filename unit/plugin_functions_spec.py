@@ -2,7 +2,7 @@ from kallikrein import k, Expectation
 from kallikrein.matchers.either import be_right
 from kallikrein.matchers.length import have_length
 
-from chromatin.plugins.core.main import PluginFunctions
+from chromatin.components.core.main import PluginFunctions
 
 from amino import Just, _, List
 

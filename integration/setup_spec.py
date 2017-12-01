@@ -8,12 +8,12 @@ from amino.test import temp_dir
 from amino import List, Path, _
 
 from ribosome.test.integration.klk import later
-from ribosome.machine.messages import UpdateState
+# from ribosome.machine.messages import UpdateState
 
 from chromatin.venvs import VenvFacade
 from chromatin.plugin import RpluginSpec
-from chromatin.plugins.core.messages import (SetupPlugins, SetupVenvs, PostSetup, AddVenv, InstallMissing, Installed,
-                                             UpdatePlugins, Updated)
+from chromatin.components.core.messages import (SetupPlugins, SetupVenvs, PostSetup, AddVenv, InstallMissing, Installed,
+                                                UpdatePlugins, Updated)
 
 from integration._support.rplugin_spec_base import RpluginSpecBase
 
