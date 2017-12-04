@@ -1,17 +1,17 @@
 import abc
 import shutil
 import venv
+import sys
 import pkg_resources
 
-from amino import Path, IO, do, Maybe, _, L, List, Future, Boolean, Map, Either, Right
+from amino import Path, IO, do, Maybe, _, L, List, Boolean, Either, Right, env
 from amino.util.string import ToStr
 from amino.boolean import true, false
 from amino.do import Do
 
-from ribosome.process import JobClient, Result, Job
+from ribosome.process import Subprocess
 
 from chromatin.plugin import RpluginSpec
-
 from chromatin.logging import Logging
 from chromatin.venv import Venv, PluginVenv
 
@@ -44,14 +44,14 @@ def remove_dir(dir: Path) -> Do:
 
 @do(IO[Venv])
 def build(dir: Path, plugin: RpluginSpec) -> Do:
-    builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
-    context = yield IO.delay(builder.ensure_directories, str(dir))
-    yield IO.delay(builder.create_configuration, context)
-    yield IO.delay(builder.setup_python, context)
-    yield IO.delay(builder._setup_pip, context)
-    yield IO.delay(builder.setup_scripts, context)
-    yield IO.delay(builder.post_setup, context)
-    yield IO.pure(Venv.from_ns(dir, plugin, context))
+    exe = 'python3' if 'VIRTUAL_ENV' in env else sys.executable
+    retval, out, err = yield Subprocess.popen(exe, '-m', 'venv', str(dir), '--upgrade', timeout=30)
+    success = retval == 0
+    yield (
+        IO.delay(cons_venv, dir, plugin)
+        if success else
+        IO.failed(f'creating venv for {plugin}: {err.join_lines}')
+    )
 
 
 def cons_venv(dir: Path, plugin: RpluginSpec) -> Venv:
@@ -134,20 +134,13 @@ class VenvFacade(Logging):
     def package_installed(self, venv: Venv) -> Boolean:
         return self.package_state(venv).exists
 
-    @do(Either[str, Future[Result]])
+    @do(Either[str, Subprocess[Venv]])
     def install(self, pvenv: PluginVenv) -> Do:
         venv = pvenv.venv
         self.log.debug(f'installing {venv}')
         bin_path = yield venv.bin_path
         pip_bin = bin_path / 'pip'
-        args = ['install', '-U', '--no-cache', pvenv.req]
-        job = Job(
-            client=JobClient(cwd=Path.cwd(), name=f'pip install -U {pvenv.req}'),
-            exe=str(pip_bin),
-            args=args,
-            loop=None,
-            kw=Map(env=dict()),
-        )
-        yield Right(job)
+        args = List('install', '-U', '--no-cache', pvenv.req)
+        yield Right(Subprocess(pip_bin, args, venv))
 
 __all__ = ('VenvFacade', 'VenvState', 'VenvExistent', 'VenvAbsent')

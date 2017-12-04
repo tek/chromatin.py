@@ -23,9 +23,9 @@ def host_cmdline(python_exe: Path, bin_path: Path, plug: Path, debug: bool) -> t
 
 @do(NvimIO[None])
 def define_stderr_handler() -> Do:
-    exists = yield NvimIO(__.function_exists(stderr_handler_name))
+    exists = yield NvimIO.delay(__.function_exists(stderr_handler_name))
     if not exists:
-        yield NvimIO(__.define_function(stderr_handler_name, List('id', 'data', 'event'), stderr_handler_body))
+        yield NvimIO.delay(__.define_function(stderr_handler_name, List('id', 'data', 'event'), stderr_handler_body))
 
 
 @do(NvimIO[Tuple[int, int]])

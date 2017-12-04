@@ -1,6 +1,6 @@
 from amino import Path, Try, Right, Either, do, Nil
 from amino.do import Do
-from amino.boolean import true
+from amino.boolean import true, false
 
 from ribosome.config import PluginSettings
 from ribosome.config.settings import bool_setting, path_setting, list_setting
@@ -21,6 +21,9 @@ rplugin_help = '''The remote plugins managed by chromatin can be configured as a
 '''
 autostart_help = '''When set, chromatin will commence installation and activation of plugins on start.
 '''
+debug_pythonpath_help = '''When set, rplugins will bei started with the outer python env, effectively keeping the
+$PYTHONPATH env var as it is in neovim.
+'''
 
 
 @do(Either[str, Path])
@@ -39,6 +42,8 @@ class CrmSettings(PluginSettings):
         self.venv_dir = path_setting('venv_dir', 'virtualenv base directory', venv_dir_help, True, default_venv_dir())
         self.rplugins = list_setting('rplugins', 'rplugin config', rplugin_help, True, Right(Nil))
         self.autostart = bool_setting('autostart', 'autostart plugins', autostart_help, True, Right(true))
+        self.debug_pythonpath = bool_setting('debug_pythonpath', 'pass through $PYTHONPATH', debug_pythonpath_help,
+                                             True, Right(false))
 
 
 __all__ = ('CrmSettings',)

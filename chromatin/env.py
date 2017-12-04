@@ -143,7 +143,7 @@ class Env(Dat['Env'], Logging, Data):
         return self.active.filter(lambda v: v.name in names)
 
     def add_handlers(self, venv: Venv, handlers: List[DefinedHandler]) -> 'Env':
-        return self.modder.handlers(_ + (venv.name, handlers))
+        return self.append.handlers((venv.name, handlers))
 
     def handlers_for(self, plugin: str) -> Either[str, List[DefinedHandler]]:
         return self.handlers.lift(plugin).to_either(f'no handlers defined for {plugin}')

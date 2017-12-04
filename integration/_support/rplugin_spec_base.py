@@ -49,7 +49,7 @@ class RpluginSpecBase(DefaultSpec):
         self.vim.vars.set_p('venv_dir', str(dir))
         return VenvFacade(dir)
 
-    def setup_one(self, name: str, venv_dir: Maybe[Path] = Nothing) -> RpluginSpec:
+    def setup_one(self, name: str, venv_dir: Maybe[Path]=Nothing) -> RpluginSpec:
         plugin = RpluginSpec(name=name, spec=name)
         path = fixture_path('rplugin', name)
         self.json_cmd_sync('Cram', str(path), name=name)
@@ -60,7 +60,7 @@ class RpluginSpecBase(DefaultSpec):
         plugin = self.setup_one(name, venv_dir)
         return venvs, plugin
 
-    def install_one(self, name: str, venv_dir: Maybe[Path] = Nothing) -> Tuple[Venv, RpluginSpec]:
+    def install_one(self, name: str, venv_dir: Maybe[Path]=Nothing) -> Tuple[Venv, RpluginSpec]:
         venvs, plugin = self.setup_one_with_venvs(name, venv_dir)
         self.cmd('CrmSetupPlugins')
         self.venv_existent(venvs, plugin)

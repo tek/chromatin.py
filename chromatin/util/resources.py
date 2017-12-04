@@ -24,8 +24,17 @@ def installed_plugin(name: str) -> str:
     return f'installed plugin \'{name}\''
 
 
+def plugins_install_failed(names: List[str]) -> str:
+    return f'failed to install rplugins: {names.join_comma}'
+
+
+def installed_plugins(names: List[str]) -> str:
+    return f'installed plugins {names.join_comma}'
+
+
 def updated_plugin(name: str) -> str:
     return f'updated plugin \'{name}\''
 
-__all__ = ('xdg_cache_home', 'xdg_cache_home_env_var', 'create_venv_dir_error', 'installed_plugin',
-           'updated_plugin', 'no_plugins_match_for_activation', 'no_plugins_match_for_deactivation')
+__all__ = ('xdg_cache_home', 'create_venv_dir_error', 'installed_plugin', 'updated_plugin',
+           'no_plugins_match_for_activation', 'no_plugins_match_for_deactivation', 'plugins_install_failed',
+           'installed_plugins')
