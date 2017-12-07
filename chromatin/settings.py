@@ -24,6 +24,8 @@ autostart_help = '''When set, chromatin will commence installation and activatio
 debug_pythonpath_help = '''When set, rplugins will bei started with the outer python env, effectively keeping the
 $PYTHONPATH env var as it is in neovim.
 '''
+autoreboot_help = '''When set, plugins will be de- and reactivated after being updated.
+'''
 
 
 @do(Either[str, Path])
@@ -44,6 +46,7 @@ class CrmSettings(PluginSettings):
         self.autostart = bool_setting('autostart', 'autostart plugins', autostart_help, True, Right(true))
         self.debug_pythonpath = bool_setting('debug_pythonpath', 'pass through $PYTHONPATH', debug_pythonpath_help,
                                              True, Right(false))
+        self.autoreboot = bool_setting('autoreboot', 'autoreboot plugins', autoreboot_help, True, Right(true))
 
 
 __all__ = ('CrmSettings',)

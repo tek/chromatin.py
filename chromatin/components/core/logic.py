@@ -20,8 +20,9 @@ from chromatin import Env
 from chromatin.plugin import RpluginSpec
 from chromatin.venvs import VenvAbsent, VenvFacade
 from chromatin.venv import Venv, ActiveVenv
-from chromatin.host import start_host
+from chromatin.host import start_host, stop_host
 from chromatin.components.core.messages import DefinedHandlers
+from chromatin.util import resources
 
 
 @do(NvimIO[List[DefinedHandler]])
@@ -82,48 +83,55 @@ def activate_multi(venvs: List[Venv]) -> Do:
     yield inactive.traverse(activate_venv, NS)
 
 
-# @do(ESG)
-# def activate_by_names(plugins: List[str]) -> Do:
-#     getter = _.installed if plugins.empty else __.installed_by_name(plugins)
-#     venvs = yield EitherState.inspect(getter)
-#     yield (
-#         EitherState.pure(List(Error(resources.no_plugins_match_for_activation(plugins))))
-#         if venvs.empty else
-#         activate_multi(venvs)
-#     )
+@do(NS[Env, None])
+def activate_by_names(plugins: List[str]) -> Do:
+    getter = _.installed if plugins.empty else __.installed_by_name(plugins)
+    venvs = yield NS.inspect(getter)
+    yield (
+        NS.error(resources.no_plugins_match_for_activation(plugins))
+        if venvs.empty else
+        activate_multi(venvs)
+    )
 
 
-# def activate_all() -> STE:
-#     return activate_by_names(List())
+def activate_all() -> NS[Env, None]:
+    return activate_by_names(List())
 
 
-# @do(State[Env, Any])
-# def deactivate_venv(venv: ActiveVenv) -> Do:
-#     def undef(spec: RpcHandlerSpec) -> NvimIO[str]:
-#         return NvimIO.cmd(spec.undef_cmdline, verbose=True)
-#     @do(NvimIO[Any])
-#     def run(handlers: List[RpcHandlerSpec]) -> Do:
-#         yield NvimIO.cmd(f'{camelcase(venv.name)}Quit')
-#         yield stop_host(venv.channel)
-#         yield handlers.traverse(undef, NvimIO)
-#         yield NvimIO.pure(List(Deactivated(venv)))
-#     # handlers = yield State.inspect(__.handlers_for(venv.name))
-#     # specs = (handlers | Nil) / _.spec
-#     # yield State.pure(RunNvimIO(run(specs)))
-
-# def deactivate_multi(venvs: List[ActiveVenv]) -> State[Env, List[RunNvimIO]]:
-#     return venvs.traverse(deactivate_venv, State)
+@do(NS[Env, None])
+def deactivate_venv(venv: ActiveVenv) -> Do:
+    def undef(spec: RpcHandlerSpec) -> NvimIO[str]:
+        return NvimIO.cmd(spec.undef_cmdline, verbose=True)
+    @do(NvimIO[None])
+    def run(handlers: List[RpcHandlerSpec]) -> Do:
+        yield NvimIO.cmd(f'{camelcase(venv.name)}Quit')
+        yield stop_host(venv.channel)
+        yield handlers.traverse(undef, NvimIO)
+        # yield NvimIO.pure(List(Deactivated(venv)))
+    handlers = yield NS.inspect(__.handlers_for(venv.name))
+    specs = (handlers | Nil) / _.spec
+    yield NS.lift(run(specs))
 
 
-# @do(ISG)
-# def deactivate_by_names(plugins: List[str]) -> Do:
-#     getter = _.active if plugins.empty else __.active_by_name(plugins)
-#     venvs = yield State.inspect(getter)
-#     yield (
-#         State.pure(List(Error(resources.no_plugins_match_for_deactivation(plugins))))
-#         if venvs.empty else
-#         deactivate_multi(venvs)
-#     )
+def deactivate_multi(venvs: List[ActiveVenv]) -> NS[Env, List[NvimIO[None]]]:
+    return venvs.traverse(deactivate_venv, NS)
+
+
+@do(NS[Env, List[NvimIO[None]]])
+def deactivate_by_names(plugins: List[str]) -> Do:
+    getter = _.active if plugins.empty else __.active_by_name(plugins)
+    venvs = yield NS.inspect(getter)
+    yield (
+        NS.error(resources.no_plugins_match_for_deactivation(plugins))
+        if venvs.empty else
+        deactivate_multi(venvs)
+    )
+
+
+@do(NS[Env, None])
+def reboot(plugins: List[str]) -> Do:
+    yield activate_by_names(plugins)
+    yield deactivate_by_names(plugins)
 
 
 @do(NS[Env, None])
@@ -167,7 +175,7 @@ def venv_setup_result(result: List[Either[str, Venv]]) -> Do:
     yield EitherState.lift(ret)
 
 
-def install_result(results: List[Either[IOException, SubprocessResult[Venv]]]) -> Maybe[Message]:
+def install_plugins_result(results: List[Either[IOException, SubprocessResult[Venv]]]) -> Maybe[Message]:
     venvs = results.flat_map(__.cata(ReplaceVal(Nil), List))
     errors = results.flat_map(__.cata(List, ReplaceVal(Nil)))
     return venvs, errors
@@ -184,7 +192,7 @@ def install_plugins(venvs: List[Venv], update: Boolean) -> Do:
     def plugin_venvs(env: Env) -> Do:
         pvenvs = yield venvs.traverse(env.plugin_venv, Either)
         procs = yield pvenvs.traverse(venv_facade.install, Either)
-        yield Right(GatherSubprocs(procs, install_result, timeout=60))
+        yield Right(GatherSubprocs(procs, install_plugins_result, timeout=60))
     pvenvs = yield NS.inspect(plugin_venvs)
     yield NS.from_either(pvenvs)
 
@@ -207,4 +215,4 @@ def read_conf() -> Do:
     yield NS.from_either(specs)
 
 
-__all__ = ('add_crm_venv', 'read_conf')
+__all__ = ('add_crm_venv', 'read_conf', 'install_plugins', 'bootstrap', 'add_installed', 'defined_handlers')

@@ -35,6 +35,10 @@ def installed_plugins(names: List[str]) -> str:
 def updated_plugin(name: str) -> str:
     return f'updated plugin \'{name}\''
 
+
+def updated_plugins(names: List[str]) -> str:
+    return f'updated plugins {names.join_comma}'
+
 __all__ = ('xdg_cache_home', 'create_venv_dir_error', 'installed_plugin', 'updated_plugin',
            'no_plugins_match_for_activation', 'no_plugins_match_for_deactivation', 'plugins_install_failed',
-           'installed_plugins')
+           'installed_plugins', 'updated_plugins')

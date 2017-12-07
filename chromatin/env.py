@@ -116,8 +116,8 @@ class Env(Dat['Env'], Logging, Data):
         return self.settings.handle_crm.value_or_default
 
     @property
-    def autoreboot(self) -> Boolean:
-        return self.vim.vars.pb('autoreboot') | true
+    def autoreboot(self) -> NvimIO[Boolean]:
+        return self.settings.autoreboot.value_or_default
 
     @property
     def active_venvs(self) -> List[Venv]:

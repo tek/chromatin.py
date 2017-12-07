@@ -28,7 +28,7 @@ class Venv(Dat['Venv']):
         return Venv(name=plugin.name, dir=dir, python_executable=exe, bin_path=bin_path)
 
     def _arg_desc(self) -> List[str]:
-        return List(str(self.dir), str(self.name))
+        return List(str(self.name), str(self.dir))
 
     @property
     def site(self) -> Path:

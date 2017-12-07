@@ -4,12 +4,11 @@ from ribosome.config import Config
 from ribosome.request.handler.handler import RequestHandler
 from ribosome.request.handler.prefix import Plain, Full
 
-from chromatin.components.core.messages import (AddPlugin, ShowPlugins, SetupPlugins, UpdatePlugins, Activate,
-                                                Deactivate, Reboot)
 from chromatin.env import Env
 from chromatin.settings import CrmSettings
-from chromatin.components.core.trans import stage_1
 from chromatin.components.core.main import Core
+from chromatin.components.core.trans.install import update_plugins
+from chromatin.components.core.trans.setup import stage_1
 
 config: Config = Config.cons(
     name='chromatin',
@@ -26,7 +25,7 @@ config: Config = Config.cons(
         # RequestHandler.msg_cmd(Activate)(),
         # RequestHandler.msg_cmd(Deactivate)(),
         # RequestHandler.msg_cmd(Reboot)(),
-        # RequestHandler.msg_cmd(UpdatePlugins)(name='update'),
+        RequestHandler.trans_cmd(update_plugins)(name='update'),
     )
 )
 
