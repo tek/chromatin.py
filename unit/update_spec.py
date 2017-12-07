@@ -26,14 +26,14 @@ name = 'flagellum'
 
 class UpdateSpec(SpecBase):
     '''
-    test $test
+    update one plugin $one
     '''
 
     @property
     def spec(self) -> str:
         return str(fixture_path('rplugin', name))
 
-    def test(self) -> Expectation:
+    def one(self) -> Expectation:
         dir = temp_dir('rplugin', 'venv')
         vars = dict(
             chromatin_rplugins=[dict(name=name, spec=self.spec)],

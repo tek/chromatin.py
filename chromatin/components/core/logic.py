@@ -21,7 +21,6 @@ from chromatin.plugin import RpluginSpec
 from chromatin.venvs import VenvAbsent, VenvFacade
 from chromatin.venv import Venv, ActiveVenv
 from chromatin.host import start_host, stop_host
-from chromatin.components.core.messages import DefinedHandlers
 from chromatin.util import resources
 
 
@@ -48,12 +47,7 @@ def activated(active_venv: ActiveVenv) -> Do:
     yield NS.delay(__.runtime(f'chromatin/{venv.name}/*'))
     yield NS.modify(__.host_started(active_venv))
     handlers = yield NS.lift(define_handlers(active_venv))
-    dh = DefinedHandlers(venv, handlers)
-    yield NS.modify(__.add_handlers(venv, dh))
-
-
-def defined_handlers(msg: DefinedHandlers) -> State[Env, None]:
-    return State.modify(__.add_handlers(msg.venv, msg.handlers))
+    yield NS.modify(__.add_handlers(venv, handlers))
 
 
 @do(NS[Env, ActiveVenv])
@@ -107,9 +101,10 @@ def deactivate_venv(venv: ActiveVenv) -> Do:
         yield NvimIO.cmd(f'{camelcase(venv.name)}Quit')
         yield stop_host(venv.channel)
         yield handlers.traverse(undef, NvimIO)
-        # yield NvimIO.pure(List(Deactivated(venv)))
+        ribo_log.debug(f'deactivated {venv}')
     handlers = yield NS.inspect(__.handlers_for(venv.name))
     specs = (handlers | Nil) / _.spec
+    yield NS.modify(__.deactivate_venv(venv))
     yield NS.lift(run(specs))
 
 
@@ -129,7 +124,7 @@ def deactivate_by_names(plugins: List[str]) -> Do:
 
 
 @do(NS[Env, None])
-def reboot(plugins: List[str]) -> Do:
+def reboot_plugins(plugins: List[str]) -> Do:
     yield activate_by_names(plugins)
     yield deactivate_by_names(plugins)
 

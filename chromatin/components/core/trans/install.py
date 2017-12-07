@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from amino import do, List, _, Lists, Boolean
+from amino import do, List, _, Lists
 from amino.do import Do
 from amino.boolean import false, true
 from amino.io import IOException
@@ -13,7 +13,7 @@ from ribosome.process import SubprocessResult
 from ribosome.trans.effect import GatherSubprocs
 from ribosome.trans.message_base import Message
 
-from chromatin.components.core.logic import (install_plugins, add_installed, reboot, activate_by_names,
+from chromatin.components.core.logic import (install_plugins, add_installed, reboot_plugins, activate_by_names,
                                              deactivate_by_names)
 from chromatin import Env
 from chromatin.util import resources
@@ -30,7 +30,7 @@ def install_result(installed: List[SubprocessResult[Venv]], errors: List[IOExcep
     success, failed = installed.split(_.success)
     success_venvs = success / _.data
     failed_venvs = failed / _.data
-    yield success_venvs.traverse(add_installed, NS).nvim
+    yield success_venvs.traverse(add_installed, NS)
     msg = failed.empty.c(
         lambda: Info(resources.installed_plugins(success_venvs / _.name)),
         lambda: Error(resources.plugins_install_failed(failed_venvs / _.name)),
@@ -60,7 +60,7 @@ def updated(result: List[Venv]) -> Do:
     venvs = result.filter_not(_.name == 'chromatin')
     autoreboot = yield NS.inspect_f(_.autoreboot)
     if autoreboot:
-        yield reboot(venvs / _.name)
+        yield reboot_plugins(venvs / _.name)
 
 
 @trans.free.result(trans.st, trans.gather_subprocs)
@@ -96,4 +96,9 @@ def update_plugins(*ps: str) -> Do:
     success, fail = yield update_plugins_io(plugins).m
     yield updated_plugins(success, fail).m
 
-__all__ = ('install_result', 'install_missing')
+
+@trans.free.unit()
+def reboot(*plugins: str) -> NS[Env, None]:
+    return reboot_plugins(Lists.wrap(plugins))
+
+__all__ = ('install_result', 'install_missing', 'update_plugins')

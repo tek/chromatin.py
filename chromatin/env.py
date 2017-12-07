@@ -37,7 +37,7 @@ class Env(Dat['Env'], Logging, Data):
             installed: List[Venv],
             active: List[ActiveVenv],
             uninitialized: List[ActiveVenv],
-            handlers: Map[str, DefinedHandler],
+            handlers: Map[str, List[DefinedHandler]],
     ) -> None:
         self.config = config
         self.initialized = initialized
@@ -55,16 +55,10 @@ class Env(Dat['Env'], Logging, Data):
         return self.config.settings
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
-        return self.append1.plugins(RpluginSpec(name=name, spec=spec))
+        return self.append1.plugins(RpluginSpec.cons(name=name, spec=spec))
 
     def add_plugins(self, plugins: List[RpluginSpec]) -> 'Env':
         return self.append.plugins(plugins)
-
-    @property
-    def show_plugins(self) -> List[str]:
-        def format(plug: RpluginSpec) -> str:
-            return plug.spec
-        return self.plugins.map(format).cons('Configured plugins:')
 
     def add_venv(self, venv: Venv) -> 'Env':
         return self.append.venvs((venv.name, venv))
@@ -134,7 +128,7 @@ class Env(Dat['Env'], Logging, Data):
         return self.set.uninitialized(List())
 
     def deactivate_venv(self, venv: ActiveVenv) -> 'Env':
-        return self.modder.active(__.without(venv))
+        return self.mod.active(__.without(venv))
 
     def installed_by_name(self, names: List[str]) -> List[Venv]:
         return self.installed.filter(lambda v: v.name in names)

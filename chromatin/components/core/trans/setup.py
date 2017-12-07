@@ -1,4 +1,4 @@
-from amino import do, __, List, _, Boolean, L
+from amino import do, __, List, _, Boolean, L, Map, Path
 from amino.do import Do
 from amino.state import State
 
@@ -7,6 +7,7 @@ from ribosome.trans.api import trans
 from ribosome.trans.message_base import Message
 from ribosome.trans.action import TransM
 from ribosome.trans.effect import GatherIOs
+from ribosome.trans.messages import Info
 
 from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, bootstrap,
                                              venv_setup_result, add_installed)
@@ -69,4 +70,27 @@ def stage_1() -> Do:
         yield setup_plugins.m
 
 
-__all__ = ('stage_1',)
+def show_plugins_message(venv_dir: Path, plugins: List[RpluginSpec]) -> str:
+    venv_dir_msg = f'virtualenv dir: {venv_dir}'
+    plugins_desc = plugins.map(_.spec).cons('Configured plugins:')
+    return plugins_desc.cons(venv_dir_msg).join_lines
+
+
+@trans.free.one(trans.st)
+@do(NS[Env, Message])
+def show_plugins() -> Do:
+    venv_dir = yield NS.inspect_f(_.venv_dir)
+    yield NS.inspect(lambda data: Info(show_plugins_message(venv_dir, data.plugins)))
+
+
+@trans.free.do()
+@do(NS[Env, None])
+def add_plugin(spec: str, name=None) -> Do:
+    name = name or spec
+    plugin = RpluginSpec.cons(name, spec)
+    autostart = yield add_plugins(List(plugin)).m
+    if autostart:
+        yield setup_plugins.m
+
+
+__all__ = ('stage_1', 'show_plugins')
