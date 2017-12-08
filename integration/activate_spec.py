@@ -15,7 +15,7 @@ from ribosome.test.integration.klk import later
 
 from chromatin.util import resources
 from chromatin.components.core.messages import AlreadyActive, Deactivated, Deactivate, Activated, SetupPlugins
-from chromatin.plugin import RpluginSpec
+from chromatin.model.plugin import RpluginSpec
 
 from integration._support.rplugin_spec_base import RpluginSpecBase
 

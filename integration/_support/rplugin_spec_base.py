@@ -10,8 +10,8 @@ from amino import Maybe, Path, Nothing
 
 from ribosome.test.integration.klk import later
 
-from chromatin.venvs import VenvFacade, VenvExistent
-from chromatin.plugin import RpluginSpec
+from chromatin.model.venvs import VenvFacade, VenvExistent
+from chromatin.model.plugin import RpluginSpec
 from chromatin.venv import Venv
 
 from integration._support.base import DefaultSpec

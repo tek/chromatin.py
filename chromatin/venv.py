@@ -4,7 +4,7 @@ from typing import Any
 from amino import Path, List, Try, Either
 from amino.dat import Dat
 
-from chromatin.plugin import RpluginSpec
+from chromatin.model.plugin import RpluginSpec
 
 
 class Venv(Dat['Venv']):

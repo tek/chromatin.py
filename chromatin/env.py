@@ -10,9 +10,9 @@ from amino.dat import Dat
 from amino.do import Do
 
 from chromatin.logging import Logging
-from chromatin.plugin import RpluginSpec
+from chromatin.model.plugin import RpluginSpec
 from chromatin.venv import Venv, ActiveVenv, PluginVenv
-from chromatin.venvs import VenvFacade
+from chromatin.model.venvs import VenvFacade
 from chromatin.settings import CrmSettings
 
 

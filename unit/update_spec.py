@@ -19,7 +19,7 @@ from amino.test import temp_dir, fixture_path
 
 from chromatin import config
 from chromatin.venv import Venv, ActiveVenv
-from chromatin.plugin import RpluginSpec
+from chromatin.model.plugin import RpluginSpec
 
 name = 'flagellum'
 

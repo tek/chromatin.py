@@ -12,8 +12,8 @@ from ribosome.trans.messages import Info
 from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, bootstrap,
                                              venv_setup_result, add_installed)
 from chromatin import Env
-from chromatin.plugin import RpluginSpec
-from chromatin.venvs import VenvExistent
+from chromatin.model.plugin import RpluginSpec
+from chromatin.model.venvs import VenvExistent
 from chromatin.components.core.trans.install import install_missing, install_result
 
 

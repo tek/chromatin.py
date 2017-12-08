@@ -10,8 +10,8 @@ from amino import List, Path, _
 from ribosome.test.integration.klk import later
 # from ribosome.machine.messages import UpdateState
 
-from chromatin.venvs import VenvFacade
-from chromatin.plugin import RpluginSpec
+from chromatin.model.venvs import VenvFacade
+from chromatin.model.plugin import RpluginSpec
 from chromatin.components.core.messages import (SetupPlugins, SetupVenvs, PostSetup, AddVenv, InstallMissing, Installed,
                                                 UpdatePlugins, Updated)
 

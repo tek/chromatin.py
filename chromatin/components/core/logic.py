@@ -17,8 +17,8 @@ from ribosome.request.rpc import DefinedHandler, RpcHandlerSpec
 from ribosome.nvim import NvimIO
 
 from chromatin import Env
-from chromatin.plugin import RpluginSpec
-from chromatin.venvs import VenvAbsent, VenvFacade
+from chromatin.model.plugin import RpluginSpec
+from chromatin.model.venvs import VenvAbsent, VenvFacade
 from chromatin.venv import Venv, ActiveVenv
 from chromatin.host import start_host, stop_host
 from chromatin.util import resources

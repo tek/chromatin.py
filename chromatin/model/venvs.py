@@ -5,35 +5,43 @@ import sys
 import pkg_resources
 
 from amino import Path, IO, do, Maybe, _, L, List, Boolean, Either, Right, env
-from amino.util.string import ToStr
 from amino.boolean import true, false
 from amino.do import Do
+from amino.dat import ADT
 
 from ribosome.process import Subprocess
 
-from chromatin.plugin import RpluginSpec
+from chromatin.model.plugin import RpluginSpec
 from chromatin.logging import Logging
 from chromatin.venv import Venv, PluginVenv
 
 
-class VenvState(ToStr):
+class VenvStatus(ADT['VenvStatus']):
+
+    @abc.abstractproperty
+    def exists(self) -> Boolean:
+        ...
+
+
+class VenvExistent(VenvStatus):
+
+    def __init__(self, plugin: RpluginSpec, venv: Venv) -> None:
+        self.plugin = plugin
+        self.venv = venv
+
+    @property
+    def exists(self) -> Boolean:
+        return true
+
+
+class VenvAbsent(VenvStatus):
 
     def __init__(self, plugin: RpluginSpec) -> None:
         self.plugin = plugin
 
-    def _arg_desc(self) -> List[str]:
-        return List(str(self.plugin))
-
-
-class VenvExistent(VenvState):
-
-    def __init__(self, plugin, venv) -> None:
-        super().__init__(plugin)
-        self.venv = venv
-
-
-class VenvAbsent(VenvState):
-    pass
+    @property
+    def exists(self) -> Boolean:
+        return false
 
 
 @do(IO[None])
@@ -60,48 +68,42 @@ def cons_venv(dir: Path, plugin: RpluginSpec) -> Venv:
     return Venv.from_ns(dir, plugin, context)
 
 
-class PackageState(ToStr):
-
-    def __init__(self, venv: Venv) -> None:
-        self.venv = venv
+class VenvPackageStatus(ADT['VenvPackageStatus']):
 
     @abc.abstractproperty
     def exists(self) -> Boolean:
         ...
 
 
-class PackageExistent(PackageState):
+class VenvPackageExistent(VenvPackageStatus):
 
     def __init__(self, venv: Venv, dist: pkg_resources.Distribution) -> None:
         self.venv = venv
         self.dist = dist
-
-    def _arg_desc(self) -> List[str]:
-        return List(str(self.venv), str(self.dist))
 
     @property
     def exists(self) -> Boolean:
         return true
 
 
-class PackageAbsent(PackageState):
+class VenvPackageAbsent(VenvPackageStatus):
 
-    def _arg_desc(self) -> List[str]:
-        return List()
+    def __init__(self, venv: Venv) -> None:
+        self.venv = venv
 
     @property
     def exists(self) -> Boolean:
         return false
 
 
-def package_state(venv: Venv, req: str) -> PackageState:
+def package_status(venv: Venv, req: str) -> VenvPackageStatus:
     ws = pkg_resources.WorkingSet([venv.site])
     req = pkg_resources.Requirement(req)
-    return Maybe.check(ws.by_key.get(req.key)) / L(PackageExistent)(venv, _) | PackageAbsent(venv)
+    return Maybe.check(ws.by_key.get(req.key)) / L(VenvPackageExistent)(venv, _) | VenvPackageAbsent(venv)
 
 
-def package_state_main(venv: Venv) -> PackageState:
-    return package_state(venv, venv.name)
+def package_status_main(venv: Venv) -> VenvPackageStatus:
+    return package_status(venv, venv.name)
 
 
 class VenvFacade(Logging):
@@ -109,7 +111,7 @@ class VenvFacade(Logging):
     def __init__(self, dir: Path) -> None:
         self.dir = dir
 
-    def check(self, plugin: RpluginSpec) -> VenvState:
+    def check(self, plugin: RpluginSpec) -> VenvStatus:
         dir = self.dir / plugin.name
         return (
             VenvExistent(plugin, self.cons(plugin))
@@ -128,8 +130,8 @@ class VenvFacade(Logging):
         dir = self.dir / plugin.name
         return cons_venv(dir, plugin)
 
-    def package_state(self, venv: Venv) -> PackageState:
-        return package_state_main(venv)
+    def package_status(self, venv: Venv) -> VenvPackageStatus:
+        return package_status_main(venv)
 
     def package_installed(self, venv: Venv) -> Boolean:
         return self.package_state(venv).exists
@@ -143,4 +145,4 @@ class VenvFacade(Logging):
         args = List('install', '-U', '--no-cache', pvenv.req)
         yield Right(Subprocess(pip_bin, args, venv))
 
-__all__ = ('VenvFacade', 'VenvState', 'VenvExistent', 'VenvAbsent')
+__all__ = ('VenvFacade', 'VenvStatus', 'VenvExistent', 'VenvAbsent')

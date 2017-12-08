@@ -6,7 +6,7 @@ from amino import Path, Right
 from ribosome.record import encode_json
 
 from chromatin.venv import Venv
-from chromatin.plugin import RpluginSpec
+from chromatin.model.plugin import RpluginSpec
 
 
 class JsonSpec:
