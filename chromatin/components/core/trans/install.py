@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from amino import do, List, _, Lists
+from amino import do, List, _, Lists, __
 from amino.do import Do
 from amino.boolean import false, true
 from amino.io import IOException
@@ -17,9 +17,7 @@ from chromatin.components.core.logic import (install_plugins, add_installed, reb
                                              deactivate_by_names)
 from chromatin import Env
 from chromatin.util import resources
-from chromatin.venv import Venv
-
-from amino import __
+from chromatin.model.venv import Venv
 
 
 # TODO add trans effect for logging
@@ -30,7 +28,8 @@ def install_result(installed: List[SubprocessResult[Venv]], errors: List[IOExcep
     success, failed = installed.split(_.success)
     success_venvs = success / _.data
     failed_venvs = failed / _.data
-    yield success_venvs.traverse(add_installed, NS)
+    rplugins = success_venvs / _.rplugin
+    yield rplugins.traverse(add_installed, NS)
     msg = failed.empty.c(
         lambda: Info(resources.installed_plugins(success_venvs / _.name)),
         lambda: Error(resources.plugins_install_failed(failed_venvs / _.name)),

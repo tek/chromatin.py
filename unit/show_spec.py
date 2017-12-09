@@ -9,9 +9,9 @@ from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
 
 from chromatin import config
-from chromatin.venv import Venv, ActiveVenv
-from chromatin.model.plugin import RpluginSpec
+from chromatin.model.rplugin import Rplugin
 from chromatin.components.core.trans.setup import show_plugins_message
+from chromatin.model.venv import Venv, ActiveVenv
 
 name = 'flagellum'
 
@@ -35,7 +35,7 @@ class ShowSpec(SpecBase):
         channel = 3
         pid = 1111
         active = ActiveVenv(venv, channel, pid)
-        plugin = RpluginSpec.cons('flagellum', self.spec)
+        plugin = Rplugin.cons('flagellum', self.spec)
         helper0 = DispatchHelper.cons(config, 'core', vars=vars)
         data0 = helper0.state.data
         data = data0.copy(

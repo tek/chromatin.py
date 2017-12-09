@@ -4,16 +4,16 @@ from ribosome.request.rpc import DefinedHandler
 from ribosome.config import Data, Config, PluginSettings
 from ribosome.nvim import NvimIO
 
-from amino import List, _, Either, Path, Right, do, Boolean, Map, __, Maybe, Nil, Nothing
-from amino.boolean import true, false
+from amino import List, _, Either, Path, Right, do, Boolean, Map, __, Maybe, Nil, Nothing, L
+from amino.boolean import false
 from amino.dat import Dat
 from amino.do import Do
 
 from chromatin.logging import Logging
-from chromatin.model.plugin import RpluginSpec
-from chromatin.venv import Venv, ActiveVenv, PluginVenv
-from chromatin.model.venvs import VenvFacade
+from chromatin.model.venv import Venv, ActiveVenv, cons_venv
 from chromatin.settings import CrmSettings
+from chromatin.model.rplugin import Rplugin, ActiveRplugin, VenvRplugin, cons_rplugin
+from chromatin.rplugin import venv_package_installed
 
 
 def filter_venvs_by_name(venvs: List[Venv], names: List[str]) -> List[Venv]:
@@ -30,13 +30,13 @@ class Env(Dat['Env'], Logging, Data):
             self,
             config: Config,
             initialized: Boolean,
-            plugins: List[RpluginSpec],
-            chromatin_plugin: Maybe[RpluginSpec],
+            plugins: List[Rplugin],
+            chromatin_plugin: Maybe[Rplugin],
             chromatin_venv: Maybe[Venv],
             venvs: Map[str, Venv],
-            installed: List[Venv],
-            active: List[ActiveVenv],
-            uninitialized: List[ActiveVenv],
+            ready: List[Rplugin],
+            active: List[ActiveRplugin],
+            uninitialized: List[ActiveRplugin],
             handlers: Map[str, List[DefinedHandler]],
     ) -> None:
         self.config = config
@@ -45,7 +45,7 @@ class Env(Dat['Env'], Logging, Data):
         self.chromatin_plugin = chromatin_plugin
         self.chromatin_venv = chromatin_venv
         self.venvs = venvs
-        self.installed = installed
+        self.ready = ready
         self.active = active
         self.uninitialized = uninitialized
         self.handlers = handlers
@@ -55,35 +55,30 @@ class Env(Dat['Env'], Logging, Data):
         return self.config.settings
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
-        return self.append1.plugins(RpluginSpec.cons(name=name, spec=spec))
+        return self.append1.plugins(cons_rplugin(name, spec))
 
-    def add_plugins(self, plugins: List[RpluginSpec]) -> 'Env':
+    def add_plugins(self, plugins: List[Rplugin]) -> 'Env':
         return self.append.plugins(plugins)
 
     def add_venv(self, venv: Venv) -> 'Env':
         return self.append.venvs((venv.name, venv))
 
     def add_installed(self, venv: Venv) -> 'Env':
-        return self.append1.installed(venv)
+        return self.append1.ready(venv)
 
     @property
-    def plugins_with_crm(self) -> List[RpluginSpec]:
+    def plugins_with_crm(self) -> List[Rplugin]:
         return self.plugins.cons_m(self.chromatin_plugin)
 
-    def plugin_by_name(self, name: str) -> Either[str, RpluginSpec]:
+    def plugin_by_name(self, name: str) -> Either[str, Rplugin]:
         return self.plugins_with_crm.find(lambda a: a.name == name).to_either(f'no plugin with name `{name}`')
 
-    @do(Either[str, PluginVenv])
-    def plugin_venv(self, venv: Venv) -> Do:
-        plugin = yield self.plugin_by_name(venv.name)
-        yield Right(PluginVenv(venv=venv, plugin=plugin))
-
-    def missing_in(self, venvs: VenvFacade) -> List[Venv]:
-        return self.venvs.v.filter_not(venvs.package_installed)
+    def missing_in(self, base_dir: Path) -> List[Venv]:
+        return self.venvs.v.filter_not(venv_package_installed)
 
     @property
     def missing(self) -> NvimIO[List[Venv]]:
-        return self.venv_facade / self.missing_in
+        return self.venv_dir / self.missing_in
 
     @property
     def _str_extra(self) -> List[Any]:
@@ -97,9 +92,8 @@ class Env(Dat['Env'], Logging, Data):
     def venv_dir(self) -> NvimIO[Path]:
         return self.settings.venv_dir.value_or_default
 
-    @property
-    def venv_facade(self) -> NvimIO[VenvFacade]:
-        return self.venv_dir / VenvFacade
+    def venv(self, rplugin: VenvRplugin) -> NvimIO[Venv]:
+        return self.venv_dir / L(cons_venv)(rplugin, _)
 
     @property
     def autostart(self) -> NvimIO[Boolean]:
@@ -114,12 +108,12 @@ class Env(Dat['Env'], Logging, Data):
         return self.settings.autoreboot.value_or_default
 
     @property
-    def active_venvs(self) -> List[Venv]:
-        return self.active / _.venv
+    def active_packages(self) -> List[Rplugin]:
+        return self.active / _.rplugin
 
     @property
-    def inactive(self) -> List[ActiveVenv]:
-        return self.installed.remove_all(self.active_venvs)
+    def inactive(self) -> List[ActiveRplugin]:
+        return self.ready.remove_all(self.active_packages)
 
     def host_started(self, venv: ActiveVenv) -> 'Env':
         return self.append1.active(venv).append1.uninitialized(venv)
@@ -131,7 +125,7 @@ class Env(Dat['Env'], Logging, Data):
         return self.mod.active(__.without(venv))
 
     def installed_by_name(self, names: List[str]) -> List[Venv]:
-        return self.installed.filter(lambda v: v.name in names)
+        return self.ready.filter(lambda v: v.name in names)
 
     def active_by_name(self, names: List[str]) -> List[str]:
         return self.active.filter(lambda v: v.name in names)
@@ -144,7 +138,7 @@ class Env(Dat['Env'], Logging, Data):
 
     @property
     def installed_with_crm(self) -> List[Venv]:
-        return self.installed.cons_m(self.chromatin_venv)
+        return self.ready.flat_map(lambda r: self.venvs.lift(r.name)).cons_m(self.chromatin_venv)
 
     def updateable(self, plugins: List[str]) -> List[Venv]:
         return filter_venvs_by_name(self.installed_with_crm, plugins)

@@ -15,7 +15,7 @@ from ribosome.test.integration.klk import later
 
 from chromatin.util import resources
 from chromatin.components.core.messages import AlreadyActive, Deactivated, Deactivate, Activated, SetupPlugins
-from chromatin.model.plugin import RpluginSpec
+from chromatin.model.rplugin import Rplugin
 
 from integration._support.rplugin_spec_base import RpluginSpecBase
 
@@ -51,7 +51,7 @@ def ensure_venv(f: Callable[[AS], Expectation]) -> Callable[[AS], Expectation]:
         create = self.names.exists(lambda a: not self.venv_path(a).exists())
         if create:
             self.remove()
-        def setup(venv: str) -> RpluginSpec:
+        def setup(venv: str) -> Rplugin:
             return self.setup_one(venv, Just(self.venvs_path))
         plugins = self.names / setup
         self.cmd_sync('CrmSetupPlugins')

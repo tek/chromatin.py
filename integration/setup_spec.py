@@ -11,7 +11,7 @@ from ribosome.test.integration.klk import later
 # from ribosome.machine.messages import UpdateState
 
 from chromatin.model.venvs import VenvFacade
-from chromatin.model.plugin import RpluginSpec
+from chromatin.model.rplugin import Rplugin
 from chromatin.components.core.messages import (SetupPlugins, SetupVenvs, PostSetup, AddVenv, InstallMissing, Installed,
                                                 UpdatePlugins, Updated)
 
@@ -22,8 +22,8 @@ name2 = 'cilia'
 path1 = fixture_path('rplugin', name1)
 path2 = fixture_path('rplugin', name2)
 
-plugin1 = RpluginSpec(name=name1, spec=name1)
-plugin2 = RpluginSpec(name=name2, spec=name2)
+plugin1 = Rplugin(name=name1, spec=name1)
+plugin2 = Rplugin(name=name2, spec=name2)
 
 plugins = List(
     dict(name=name1, spec=str(path1)),

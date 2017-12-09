@@ -18,8 +18,8 @@ from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
 
 from chromatin import config
-from chromatin.venv import Venv, ActiveVenv
-from chromatin.model.plugin import RpluginSpec
+from chromatin.model.rplugin import Rplugin, cons_rplugin, ActiveRplugin
+from chromatin.model.venv import Venv
 
 name = 'flagellum'
 
@@ -39,10 +39,11 @@ class UpdateSpec(SpecBase):
             chromatin_rplugins=[dict(name=name, spec=self.spec)],
             chromatin_venv_dir=str(dir),
         )
-        venv = Venv(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null')))
         channel = 3
         pid = 1111
-        active = ActiveVenv(venv, channel, pid)
+        rplugin = cons_rplugin(name, self.spec)
+        active = ActiveRplugin(rplugin, channel, pid)
+        venv = Venv(rplugin, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null')))
         responses_strict = Map(
             {
                 'jobstart': channel,
@@ -69,10 +70,10 @@ class UpdateSpec(SpecBase):
         helper0 = DispatchHelper.cons(config, 'core', vars=vars, responses=responses, io_executor=x_io)
         data0 = helper0.state.data
         data = data0.copy(
-            plugins=List(RpluginSpec.cons('flagellum', self.spec)),
+            plugins=List(Rplugin.cons('flagellum', self.spec)),
             venvs=Map({name: venv}),
             active=List(active),
-            installed=List(venv),
+            ready=List(rplugin),
         )
         helper = helper0.copy(state=helper0.state.copy(data=data))
         r = helper.loop('chromatin:command:update', ('flagellum',)).unsafe(helper.vim)

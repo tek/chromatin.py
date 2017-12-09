@@ -2,11 +2,10 @@ from kallikrein import k, Expectation
 from kallikrein.matchers.either import be_right
 
 from amino import Path, Right
+from amino.json import dump_json
 
-from ribosome.record import encode_json
-
-from chromatin.venv import Venv
-from chromatin.model.plugin import RpluginSpec
+from chromatin.model.rplugin import cons_rplugin
+from chromatin.model.venv import Venv
 
 
 class JsonSpec:
@@ -15,8 +14,8 @@ class JsonSpec:
 
     def venv(self) -> Expectation:
         p = Path('/')
-        plugin = RpluginSpec(spec='spec', name='name')
-        venv = Venv(name=plugin.name, dir=p, python_executable=Right(p), bin_path=Right(p))
-        return k(encode_json(venv)).must(be_right)
+        plugin = cons_rplugin('spec', 'name')
+        venv = Venv(plugin, p, Right(p), Right(p))
+        return k(dump_json(venv)).must(be_right)
 
 __all__ = ('JsonSpec',)

@@ -1,3 +1,4 @@
+import sys
 from typing import Tuple
 
 from amino import do, __, _, Just, Maybe, List, Either, Nil, Boolean, Right, Left, Path, Lists
@@ -6,30 +7,28 @@ from amino.state import State, EitherState
 from amino.io import IOException
 from amino.func import ReplaceVal
 from amino.util.string import camelcaseify, camelcase
+from amino.dispatch import dispatch_alg
 
 from ribosome.nvim.io import NS
 from ribosome.trans.message_base import Message
 from ribosome.trans.effect import GatherSubprocs
 from ribosome.trans.send_message import transform_data_state
-from ribosome.process import SubprocessResult
+from ribosome.process import SubprocessResult, Subprocess
 from ribosome.logging import ribo_log
 from ribosome.request.rpc import DefinedHandler, RpcHandlerSpec
 from ribosome.nvim import NvimIO
 
 from chromatin import Env
-from chromatin.model.plugin import RpluginSpec
-from chromatin.model.venvs import VenvAbsent, VenvFacade
-from chromatin.venv import Venv, ActiveVenv
+from chromatin.model.venv import Venv, cons_venv
 from chromatin.host import start_host, stop_host
 from chromatin.util import resources
+from chromatin.model.rplugin import Rplugin, ActiveRplugin, DirRplugin, VenvRplugin, SiteRplugin
 
 
 @do(NvimIO[List[DefinedHandler]])
-def define_handlers(active_venv: ActiveVenv) -> Do:
-    venv = active_venv.venv
-    name = venv.name
-    channel = active_venv.channel
-    cname = camelcaseify(name)
+def define_handlers(active_rplugin: ActiveRplugin) -> Do:
+    channel = active_rplugin.channel
+    cname = camelcaseify(active_rplugin.name)
     rpc_handlers_fun = f'{cname}RpcHandlers'
     result = yield NvimIO.call_once_defined(rpc_handlers_fun, timeout=3)
     handlers = (
@@ -41,40 +40,56 @@ def define_handlers(active_venv: ActiveVenv) -> Do:
 
 
 @do(NS[Env, None])
-def activated(active_venv: ActiveVenv) -> Do:
-    ribo_log.debug(f'activated {active_venv}')
-    venv = active_venv.venv
-    yield NS.delay(__.runtime(f'chromatin/{venv.name}/*'))
-    yield NS.modify(__.host_started(active_venv))
-    handlers = yield NS.lift(define_handlers(active_venv))
-    yield NS.modify(__.add_handlers(venv, handlers))
+def activated(active_rplugin: ActiveRplugin) -> Do:
+    ribo_log.debug(f'activated {active_rplugin}')
+    spec = active_rplugin.rplugin
+    yield NS.delay(__.runtime(f'chromatin/{spec.name}/*'))
+    yield NS.modify(__.host_started(active_rplugin))
+    handlers = yield NS.lift(define_handlers(active_rplugin))
+    yield NS.modify(__.add_handlers(spec, handlers))
 
 
-@do(NS[Env, ActiveVenv])
-def start_venv_host(venv: Venv, python_exe: Path, bin_path: Path) -> Do:
+@do(NS[Env, ActiveRplugin])
+def start_rplugin_host(rplugin: Rplugin, python_exe: Path, bin_path: Path, plugin_path: Path) -> Do:
     debug = yield NS.inspect_f(_.settings.debug_pythonpath.value_or_default)
-    channel, pid = yield NS.lift(start_host(python_exe, bin_path, venv.plugin_path, debug))
-    yield NS.pure(ActiveVenv(venv=venv, channel=channel, pid=pid))
+    channel, pid = yield NS.lift(start_host(python_exe, bin_path, plugin_path, debug))
+    yield NS.pure(ActiveRplugin(rplugin, channel, pid))
 
 
-@do(Either[str, NS[Env, ActiveVenv]])
-def venv_activation_io(venv: Venv) -> Do:
-    python_exe = yield venv.python_executable
-    bin_path = yield venv.bin_path
-    yield Right(start_venv_host(venv, python_exe, bin_path))
+class ActivateRpluginIO:
+
+    def dir_rplugin(self, rplugin: DirRplugin) -> NS[Env, ActiveRplugin]:
+        python_exe = Path(sys.executable)
+        bin_path = python_exe.parent
+        plugin_path = Path(rplugin.spec) / '__init__.py'
+        return start_rplugin_host(rplugin, python_exe, bin_path, plugin_path)
+
+    @do(NS[Env, ActiveRplugin])
+    def venv_rplugin(self, rplugin: VenvRplugin) -> Do:
+        venv = yield NS.inspect_f(__.venv(rplugin))
+        python_exe = yield NS.from_either(venv.python_executable)
+        bin_path = yield NS.from_either(venv.bin_path)
+        yield start_rplugin_host(venv.rplugin, python_exe, bin_path, venv.plugin_path)
+
+    # TODO start with module
+    def site_rplugin(self, rplugin: SiteRplugin) -> NS[Env, ActiveRplugin]:
+        return NS.error('site rplugins not implemented yet')
+
+
+activate_rplugin_io = dispatch_alg(ActivateRpluginIO(), Rplugin)
 
 
 @do(NS[Env, None])
-def activate_venv(venv: Venv) -> Do:
-    active_env = yield venv_activation_io(venv).value_or(NS.failed)
+def activate_rplugin(package: Rplugin) -> Do:
+    active_env = yield activate_rplugin_io(package)
     yield activated(active_env)
 
 
 @do(NS[Env, None])
-def activate_multi(venvs: List[Venv]) -> Do:
-    active = yield NS.inspect(_.active_venvs)
-    already_active, inactive = venvs.split(active.contains)
-    yield inactive.traverse(activate_venv, NS)
+def activate_multi(packages: List[Rplugin]) -> Do:
+    active = yield NS.inspect(_.active_packages)
+    already_active, inactive = packages.split(active.contains)
+    yield inactive.traverse(activate_rplugin, NS)
 
 
 @do(NS[Env, None])
@@ -93,7 +108,7 @@ def activate_all() -> NS[Env, None]:
 
 
 @do(NS[Env, None])
-def deactivate_venv(venv: ActiveVenv) -> Do:
+def deactivate_venv(venv: ActiveRplugin) -> Do:
     def undef(spec: RpcHandlerSpec) -> NvimIO[str]:
         return NvimIO.cmd(spec.undef_cmdline, verbose=True)
     @do(NvimIO[None])
@@ -108,7 +123,7 @@ def deactivate_venv(venv: ActiveVenv) -> Do:
     yield NS.lift(run(specs))
 
 
-def deactivate_multi(venvs: List[ActiveVenv]) -> NS[Env, List[NvimIO[None]]]:
+def deactivate_multi(venvs: List[ActiveRplugin]) -> NS[Env, List[NvimIO[None]]]:
     return venvs.traverse(deactivate_venv, NS)
 
 
@@ -154,10 +169,6 @@ def add_installed(venv: Venv) -> State[Env, None]:
     return State.modify(__.add_installed(venv))
 
 
-def bootstrap(venv_facade: VenvFacade, venv: VenvAbsent) -> None:
-    return venv_facade.bootstrap(venv.plugin)
-
-
 @do(EitherState[Env, None])
 def venv_setup_result(result: List[Either[str, Venv]]) -> Do:
     def split(z: Tuple[List[str], List[Venv]], a: Either[str, Venv]) -> Tuple[List[str], List[Venv]]:
@@ -176,19 +187,26 @@ def install_plugins_result(results: List[Either[IOException, SubprocessResult[Ve
     return venvs, errors
 
 
+@do(Either[str, Subprocess[Venv]])
+def install_venv(venv: Venv) -> Do:
+    ribo_log.debug(f'installing {venv}')
+    bin_path = yield venv.bin_path
+    pip_bin = bin_path / 'pip'
+    args = List('install', '-U', '--no-cache', venv.req)
+    yield Right(Subprocess(pip_bin, args, venv))
+
+
 # FIXME why not parallel?
 @do(NS[Env, GatherSubprocs[Venv, Tuple[List[Venv], List[IOException]]]])
 def install_plugins(venvs: List[Venv], update: Boolean) -> Do:
     '''run subprocesses in sequence that install packages into their venvs using pip.
     cannot be run in parallel as they seem to deadlock.
     '''
-    venv_facade = yield NS.inspect_f(_.venv_facade)
     @do(Either[str, GatherSubprocs])
-    def plugin_venvs(env: Env) -> Do:
-        pvenvs = yield venvs.traverse(env.plugin_venv, Either)
-        procs = yield pvenvs.traverse(venv_facade.install, Either)
+    def subprocs(env: Env) -> Do:
+        procs = yield venvs.traverse(install_venv, Either)
         yield Right(GatherSubprocs(procs, install_plugins_result, timeout=60))
-    pvenvs = yield NS.inspect(plugin_venvs)
+    pvenvs = yield NS.inspect(subprocs)
     yield NS.from_either(pvenvs)
 
 
@@ -196,18 +214,17 @@ def install_plugins(venvs: List[Venv], update: Boolean) -> Do:
 def add_crm_venv() -> Do:
     handle = yield NS.inspect_f(_.handle_crm)
     if handle:
-        plugin = RpluginSpec.simple('chromatin')
+        plugin = Rplugin.simple('chromatin')
         yield NS.modify(__.set.chromatin_plugin(Just(plugin)))
-        venv_facade = yield NS.inspect_f(_.venv_facade)
-        venv = venv_facade.cons(plugin)
-        yield NS.modify(__.set.chromatin_venv(Just(venv)))
+        venv_dir = yield NS.inspect_f(_.venv_dir)
+        yield NS.modify(__.set.chromatin_venv(Just(cons_venv(plugin, venv_dir))))
 
 
-@do(NS[Env, List[RpluginSpec]])
+@do(NS[Env, List[Rplugin]])
 def read_conf() -> Do:
     plugin_conf = yield NS.inspect_f(_.rplugins)
-    specs = plugin_conf.traverse(RpluginSpec.from_config, Either)
+    specs = plugin_conf.traverse(Rplugin.from_config, Either)
     yield NS.from_either(specs)
 
 
-__all__ = ('add_crm_venv', 'read_conf', 'install_plugins', 'bootstrap', 'add_installed', 'defined_handlers')
+__all__ = ('add_crm_venv', 'read_conf', 'install_plugins', 'add_installed')

@@ -16,7 +16,8 @@ from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
 
 from chromatin import config
-from chromatin.venv import Venv, ActiveVenv
+from chromatin.model.venv import Venv
+from chromatin.model.rplugin import cons_rplugin, ActiveRplugin
 
 name = 'flagellum'
 
@@ -36,7 +37,8 @@ class Stage1Spec(SpecBase):
             chromatin_rplugins=[dict(name=name, spec=self.spec)],
             chromatin_venv_dir=str(dir),
         )
-        venv = Venv(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null')))
+        rplugin = cons_rplugin(name, self.spec)
+        venv = Venv(rplugin, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null')))
         responses_strict = Map(
             {
                 'jobstart': 3,
@@ -62,6 +64,6 @@ class Stage1Spec(SpecBase):
                 return execute_io(dio)
         helper = DispatchHelper.cons(config, 'core', vars=vars, responses=responses, io_executor=x_io)
         r = helper.loop('chromatin:command:stage_1').unsafe(helper.vim)
-        return k(r.data.venvs.k).must(contain(name)) & k(r.data.active).must(contain(ActiveVenv(venv, 3, 1111)))
+        return k(r.data.venvs.k).must(contain(name)) & k(r.data.active).must(contain(ActiveRplugin(rplugin, 3, 1111)))
 
 __all__ = ('Stage1Spec',)

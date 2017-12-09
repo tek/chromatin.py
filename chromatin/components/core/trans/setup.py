@@ -1,4 +1,4 @@
-from amino import do, __, List, _, Boolean, L, Map, Path
+from amino import do, __, List, _, Boolean, L, Path
 from amino.do import Do
 from amino.state import State
 
@@ -9,12 +9,14 @@ from ribosome.trans.action import TransM
 from ribosome.trans.effect import GatherIOs
 from ribosome.trans.messages import Info
 
-from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, bootstrap,
-                                             venv_setup_result, add_installed)
+from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, venv_setup_result,
+                                             add_installed)
 from chromatin import Env
-from chromatin.model.plugin import RpluginSpec
-from chromatin.model.venvs import VenvExistent
+from chromatin.model.rplugin import Rplugin, cons_rplugin
 from chromatin.components.core.trans.install import install_missing, install_result
+from chromatin.model.rplugin import RpluginReady, VenvRplugin
+from chromatin.model.venv import bootstrap
+from chromatin.rplugin import RpluginFacade
 
 
 @trans.free.result(trans.st)
@@ -30,14 +32,16 @@ def init() -> Do:
 @do(NS[Env, GatherIOs])
 def setup_venvs() -> Do:
     '''check whether a venv exists for each plugin in the env.
-    for those that don't, create venvs in `g:chromatin_venv_dir`.
+    for those that don't have one, create venvs in `g:chromatin_venv_dir`.
     '''
-    venv_facade = yield NS.inspect_f(_.venv_facade)
+    venv_dir = yield NS.inspect_f(_.venv_dir)
+    rplugin_facade = RpluginFacade(venv_dir)
     plugins = yield NS.inspect(_.plugins)
-    jobs = plugins / venv_facade.check
-    existent, absent = jobs.split_type(VenvExistent)
-    yield existent.traverse(add_installed, State).nvim
-    yield NS.pure(GatherIOs(absent.map(L(bootstrap)(venv_facade, _)), venv_setup_result, timeout=30))
+    rplugin_status = plugins / rplugin_facade.check
+    ready, absent = rplugin_status.split_type(RpluginReady)
+    yield (ready / _.rplugin).traverse(add_installed, State).nvim
+    absent_venvs, other = (absent / _.rplugin).split_type(VenvRplugin)
+    yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(venv_dir, _)), venv_setup_result, timeout=30))
 
 
 @trans.free.unit(trans.st)
@@ -56,21 +60,27 @@ def setup_plugins() -> Do:
 
 @trans.free.result(trans.st)
 @do(NS[Env, Boolean])
-def add_plugins(plugins: List[RpluginSpec]) -> None:
+def add_plugins(plugins: List[Rplugin]) -> None:
     yield NS.modify(__.add_plugins(plugins))
     yield NS.inspect_f(_.autostart)
 
 
 @trans.free.do()
 @do(TransM)
-def stage_1() -> Do:
-    plugins = yield init.m
+def plugins_added(plugins: List[Rplugin]) -> Do:
     autostart = yield add_plugins(plugins).m
     if autostart:
         yield setup_plugins.m
 
 
-def show_plugins_message(venv_dir: Path, plugins: List[RpluginSpec]) -> str:
+@trans.free.do()
+@do(TransM)
+def stage_1() -> Do:
+    plugins = yield init.m
+    yield plugins_added(plugins).m
+
+
+def show_plugins_message(venv_dir: Path, plugins: List[Rplugin]) -> str:
     venv_dir_msg = f'virtualenv dir: {venv_dir}'
     plugins_desc = plugins.map(_.spec).cons('Configured plugins:')
     return plugins_desc.cons(venv_dir_msg).join_lines
@@ -84,13 +94,11 @@ def show_plugins() -> Do:
 
 
 @trans.free.do()
-@do(NS[Env, None])
+@do(TransM)
 def add_plugin(spec: str, name=None) -> Do:
     name = name or spec
-    plugin = RpluginSpec.cons(name, spec)
-    autostart = yield add_plugins(List(plugin)).m
-    if autostart:
-        yield setup_plugins.m
+    plugin = cons_rplugin(name, spec)
+    yield plugins_added(List(plugin)).m
 
 
 __all__ = ('stage_1', 'show_plugins')
