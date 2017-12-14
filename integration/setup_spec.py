@@ -8,12 +8,8 @@ from amino.test import temp_dir
 from amino import List, Path, _
 
 from ribosome.test.integration.klk import later
-# from ribosome.machine.messages import UpdateState
 
-from chromatin.model.venvs import VenvFacade
-from chromatin.model.rplugin import Rplugin
-from chromatin.components.core.messages import (SetupPlugins, SetupVenvs, PostSetup, AddVenv, InstallMissing, Installed,
-                                                UpdatePlugins, Updated)
+from chromatin.model.rplugin import VenvRplugin
 
 from integration._support.rplugin_spec_base import RpluginSpecBase
 
@@ -22,8 +18,8 @@ name2 = 'cilia'
 path1 = fixture_path('rplugin', name1)
 path2 = fixture_path('rplugin', name2)
 
-plugin1 = Rplugin(name=name1, spec=name1)
-plugin2 = Rplugin(name=name2, spec=name2)
+plugin1 = VenvRplugin.cons(name1, name1)
+plugin2 = VenvRplugin.cons(name2, name2)
 
 plugins = List(
     dict(name=name1, spec=str(path1)),
@@ -34,17 +30,12 @@ plugins = List(
 class TwoExplicitSpec(RpluginSpecBase):
     '''two plugins in separate venvs
     read plugin config from `g:chromatin_rplugins` $read_conf
-    setup venvs $send_setup_venvs
     bootstrap and activate, explicit initialization $bootstrap
     '''
 
     @property
     def dir(self) -> Path:
         return temp_dir('rplugin', 'venv')
-
-    @property
-    def venvs(self) -> VenvFacade:
-        return VenvFacade(self.dir)
 
     def _pre_start(self) -> None:
         super()._pre_start()
@@ -54,19 +45,14 @@ class TwoExplicitSpec(RpluginSpecBase):
     def read_conf(self) -> Expectation:
         return k(self.state.plugins).must(have_length(2))
 
-    def send_setup_venvs(self) -> Expectation:
-        self.cmd_sync('CrmPlug core setup_venvs')
-        self.seen_message(SetupVenvs)
-        return self.venv_existent(self.venvs, plugin1) & self.venv_existent(self.venvs, plugin2)
-
     def bootstrap(self) -> Expectation:
         self.cmd_sync('CrmSetupPlugins')
-        self.seen_message(SetupVenvs)
-        self.venv_existent(self.venvs, plugin1)
-        self.seen_message(InstallMissing)
-        self.package_installed(self.venvs, plugin1)
-        self.package_installed(self.venvs, plugin2)
-        self.seen_message(PostSetup)
+        self.seen_trans('setup_venvs')
+        self.venv_existent(self.dir, plugin1)
+        self.seen_trans('install_missing')
+        self.package_installed(self.dir, plugin1)
+        self.package_installed(self.dir, plugin2)
+        self.seen_trans('post_setup')
         self.cmd_sync('CrmActivate')
         return self.plug_exists('Flag') & self.plug_exists('Cil')
 
@@ -92,10 +78,6 @@ class AutostartAtBootSpec(RpluginSpecBase):
     def dir(self) -> Path:
         return temp_dir('rplugin', 'venv')
 
-    @property
-    def venvs(self) -> VenvFacade:
-        return VenvFacade(self.dir)
-
     def _pre_start(self) -> None:
         super()._pre_start()
         self.vim.vars.set_p('rplugins', plugins.take(1))
@@ -103,11 +85,11 @@ class AutostartAtBootSpec(RpluginSpecBase):
         self.vim.vars.set_p('autostart', True)
 
     def startup(self) -> Expectation:
-        self.seen_message(SetupPlugins)
-        self.seen_message(SetupVenvs)
-        self.seen_message(AddVenv)
-        self.seen_message(InstallMissing)
-        self.seen_message(Installed)
+        self.vim.cmd_once_defined('ChromatinStage1')
+        self.seen_trans('setup_plugins')
+        self.seen_trans('setup_venvs')
+        self.seen_trans('install_missing')
+        self.seen_trans('post_setup')
         return later(self.plug_exists('Flag'))
 
 
@@ -126,10 +108,6 @@ class BootstrapSpec(RpluginSpecBase):
     @property
     def dir(self) -> Path:
         return self.pkg_dir / 'temp' / 'venv'
-
-    @property
-    def venvs(self) -> VenvFacade:
-        return VenvFacade(self.dir)
 
     def _pre_start(self) -> None:
         super()._pre_start()

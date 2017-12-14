@@ -10,9 +10,9 @@ from amino import Maybe, Path, Nothing
 
 from ribosome.test.integration.klk import later
 
-from chromatin.model.venvs import VenvFacade, VenvExistent
-from chromatin.model.rplugin import Rplugin
-from chromatin.venv import Venv
+from chromatin.model.rplugin import Rplugin, RpluginReady
+from chromatin.model.venv import VenvExistent, Venv
+from chromatin.rplugin import check_venv, rplugin_installed
 
 from integration._support.base import DefaultSpec
 
@@ -30,24 +30,24 @@ class RpluginSpecBase(DefaultSpec):
         self.command_exists(cmd, **kw)
         return kf(self.cmd_sync, cmd).must(be_right)
 
-    def venv_existent(self, venvs: VenvFacade, plugin: Rplugin, timeout: float=None) -> Expectation:
-        return later(kf(venvs.check, plugin).must(have_type(VenvExistent)), timeout=timeout, intval=.5)
+    def venv_existent(self, base_dir: Path, rplugin: Rplugin, timeout: float=None) -> Expectation:
+        return later(kf(check_venv, base_dir, rplugin).must(have_type(VenvExistent)), timeout=timeout, intval=.5)
 
-    def package_installed(self, venvs: VenvFacade, plugin: Rplugin) -> Expectation:
+    def package_installed(self, base_dir: Path, rplugin: Rplugin) -> Expectation:
         return later(
-            self.venv_existent(venvs, plugin) & kf(venvs.package_installed, venvs.check(plugin).venv).true, 20, .5
+            self.venv_existent(base_dir, rplugin) & kf(rplugin_installed, rplugin).must(have_type(RpluginReady)), 20, .5
         )
 
-    def plugin_venv(self, venvs: VenvFacade, plugin: Rplugin) -> Venv:
-        later(self.venv_existent(venvs, plugin))
-        return cast(VenvExistent, venvs.check(plugin)).venv
+    def plugin_venv(self, base_dir: Path, rplugin: Rplugin) -> Venv:
+        later(self.venv_existent(base_dir, rplugin))
+        return cast(VenvExistent, check_venv(base_dir, rplugin)).venv
 
-    def setup_venvs(self, venv_dir: Maybe[Path] = Nothing) -> VenvFacade:
+    def setup_venvs(self, venv_dir: Maybe[Path] = Nothing) -> Path:
         rtp = fixture_path('rplugin', 'config', 'rtp')
         self.vim.options.amend_l('runtimepath', rtp)
         dir = venv_dir | temp_dir('rplugin', 'venv')
         self.vim.vars.set_p('venv_dir', str(dir))
-        return VenvFacade(dir)
+        return dir
 
     def setup_one(self, name: str, venv_dir: Maybe[Path]=Nothing) -> Rplugin:
         plugin = Rplugin(name=name, spec=name)
@@ -55,20 +55,20 @@ class RpluginSpecBase(DefaultSpec):
         self.json_cmd_sync('Cram', str(path), name=name)
         return plugin
 
-    def setup_one_with_venvs(self, name: str, venv_dir: Maybe[Path] = Nothing) -> Tuple[VenvFacade, Rplugin]:
-        venvs = self.setup_venvs(venv_dir)
+    def setup_one_with_venvs(self, name: str, venv_dir: Maybe[Path] = Nothing) -> Tuple[Path, Rplugin]:
+        base_dir = self.setup_venvs(venv_dir)
         plugin = self.setup_one(name, venv_dir)
-        return venvs, plugin
+        return base_dir, plugin
 
     def install_one(self, name: str, venv_dir: Maybe[Path]=Nothing) -> Tuple[Venv, Rplugin]:
-        venvs, plugin = self.setup_one_with_venvs(name, venv_dir)
+        base_dir, plugin = self.setup_one_with_venvs(name, venv_dir)
         self.cmd('CrmSetupPlugins')
-        self.venv_existent(venvs, plugin)
-        self.package_installed(venvs, plugin)
-        return venvs, self.plugin_venv(venvs, plugin), plugin
+        self.venv_existent(base_dir, plugin)
+        self.package_installed(base_dir, plugin)
+        return base_dir, self.plugin_venv(base_dir, plugin), plugin
 
     def activate_one(self, name: str, prefix: str) -> Venv:
-        venvs, venv, plugin = self.install_one(name)
+        base_dir, venv, plugin = self.install_one(name)
         self.cmd('CrmActivate')
         later(self.plug_exists(prefix))
         return venv

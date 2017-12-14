@@ -8,6 +8,7 @@ from ribosome.trans.message_base import Message
 from ribosome.trans.action import TransM
 from ribosome.trans.effect import GatherIOs
 from ribosome.trans.messages import Info
+from ribosome.logging import ribo_log
 
 from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, venv_setup_result,
                                              add_installed)

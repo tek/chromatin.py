@@ -10,7 +10,7 @@ from amino.dat import Dat
 from amino.do import Do
 
 from chromatin.logging import Logging
-from chromatin.model.venv import Venv, ActiveVenv, cons_venv
+from chromatin.model.venv import Venv, ActiveVenv, cons_venv_under
 from chromatin.settings import CrmSettings
 from chromatin.model.rplugin import Rplugin, ActiveRplugin, VenvRplugin, cons_rplugin
 from chromatin.rplugin import venv_package_installed
@@ -93,7 +93,7 @@ class Env(Dat['Env'], Logging, Data):
         return self.settings.venv_dir.value_or_default
 
     def venv(self, rplugin: VenvRplugin) -> NvimIO[Venv]:
-        return self.venv_dir / L(cons_venv)(rplugin, _)
+        return self.venv_dir / L(cons_venv_under)(_, rplugin)
 
     @property
     def autostart(self) -> NvimIO[Boolean]:

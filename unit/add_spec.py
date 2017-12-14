@@ -16,7 +16,7 @@ from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
 
 from chromatin import config
-from chromatin.model.venv import Venv, ActiveVenv
+from chromatin.model.venv import Venv
 from chromatin.model.rplugin import cons_rplugin, ActiveRplugin
 
 name = 'flagellum'
@@ -70,35 +70,16 @@ class AddSpec(SpecBase):
         plugin_dir = Path(self.spec) / name
         spec = f'dir:{plugin_dir}'
         rplugin = cons_rplugin(name, spec)
-        dir = temp_dir('rplugin', 'venv')
-        vars = dict(
-            chromatin_venv_dir=str(dir),
-        )
-        venv = Venv(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null')))
         responses_strict = Map(
             {
                 'jobstart': 3,
                 'jobpid': 1111,
                 'FlagellumRpcHandlers': [],
-                'silent FlagellumStage1': 0,
-                'silent FlagellumStage2': 0,
-                'silent FlagellumStage3': 0,
-                'silent FlagellumStage4': 0,
             }
         )
         def responses(req: str) -> Any:
-            if req == 'FlagellumRpcHandlers':
-                return Just([])
-            else:
-                return responses_strict.lift(req).o(Just(0))
-        def x_io(dio: DIO) -> NS[PluginState, TransAction]:
-            if isinstance(dio, GatherIOsDIO):
-                return NS.pure(dio.io.handle_result(List(Right(venv))))
-            elif isinstance(dio, GatherSubprocsDIO):
-                return NS.pure(TransResult((List(SubprocessResult(0, Nil, Nil, venv)), Nil)))
-            else:
-                return execute_io(dio)
-        helper = DispatchHelper.cons(config, 'core', vars=vars, responses=responses)
+            return responses_strict.lift(req).o(Just(0))
+        helper = DispatchHelper.cons(config, 'core', responses=responses)
         r = helper.loop('chromatin:command:cram', (spec, 'flagellum')).unsafe(helper.vim)
         return k(r.data.active).must(contain(ActiveRplugin(rplugin, 3, 1111)))
 

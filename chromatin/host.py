@@ -10,10 +10,13 @@ from amino.do import Do
 
 stderr_handler_name = 'ChromatinJobStderr'
 
-stderr_handler_body = '''
-  echoerr 'error in chromatin rpc job on channel ' . a:id . ': ' . string(a:data)
+stderr_handler_body = '''\
+let err = substitute(join(a:data, '\\r'), '"', '\\"', 'g')
+python3 import amino
+python3 from ribosome.logging import ribosome_envvar_file_logging
+python3 ribosome_envvar_file_logging()
+execute 'python3 amino.amino_log.error(f"""error in chromatin rpc job on channel ' . a:id . ':\\r' . err . '""")'
 '''
-
 
 def host_cmdline(python_exe: Path, bin_path: Path, plug: Path, debug: bool) -> typing.List[str]:
     debug_option = [] if debug else ['-E']
@@ -32,7 +35,7 @@ def define_stderr_handler() -> Do:
 def start_host(python_exe: Path, bin_path: Path, plugin_path: Path, debug: bool=False) -> Do:
     yield define_stderr_handler()
     cmdline = host_cmdline(python_exe, bin_path, plugin_path, debug)
-    ribo_log.debug(f'starting host: {cmdline}')
+    ribo_log.debug(f'starting host: {cmdline}; debug: {debug}')
     channel = yield NvimIO.call('jobstart', cmdline, dict(rpc=True, on_stderr=stderr_handler_name))
     pid = yield NvimIO.call('jobpid', channel)
     ribo_log.debug(f'host running, channel {channel}, pid {pid}')

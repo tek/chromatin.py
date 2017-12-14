@@ -98,7 +98,7 @@ class VenvAbsent(VenvStatus):
 
 
 @do(IO[Venv])
-def build(dir: Path, plugin: Rplugin) -> Do:
+def build(dir: Path, plugin: VenvRplugin) -> Do:
     exe = 'python3' if 'VIRTUAL_ENV' in env else sys.executable
     retval, out, err = yield Subprocess.popen(exe, '-m', 'venv', str(dir), '--upgrade', timeout=30)
     success = retval == 0
@@ -109,10 +109,14 @@ def build(dir: Path, plugin: Rplugin) -> Do:
     )
 
 
-def cons_venv(rplugin: VenvRplugin, dir: Path) -> Venv:
+def cons_venv(dir: Path, rplugin: VenvRplugin) -> Venv:
     builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
     context = builder.ensure_directories(str(dir))
     return Venv.from_ns(rplugin, dir, context)
+
+
+def cons_venv_under(base_dir: Path, rplugin: VenvRplugin) -> Venv:
+    return cons_venv(base_dir / rplugin.name, rplugin)
 
 
 @do(IO[None])
@@ -157,4 +161,4 @@ class VenvPackageAbsent(VenvPackageStatus):
         return false
 
 __all__ = ('VenvStatus', 'VenvExistent', 'VenvAbsent', 'VenvPackageAbsent', 'VenvPackageExistent', 'VenvPackageStatus',
-           'Venv', 'ActiveVenv', 'PluginVenv')
+           'Venv', 'ActiveVenv')

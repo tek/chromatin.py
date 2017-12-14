@@ -1,12 +1,12 @@
 import sys
 from typing import Tuple
 
-from amino import do, __, _, Just, Maybe, List, Either, Nil, Boolean, Right, Left, Path, Lists
+from amino import do, __, _, Just, Maybe, List, Either, Nil, Boolean, Right, Left, Path, Lists, L
 from amino.do import Do
 from amino.state import State, EitherState
 from amino.io import IOException
 from amino.func import ReplaceVal
-from amino.util.string import camelcaseify, camelcase
+from amino.util.string import camelcaseify, camelcase, red
 from amino.dispatch import dispatch_alg
 
 from ribosome.nvim.io import NS
@@ -39,14 +39,17 @@ def define_handlers(active_rplugin: ActiveRplugin) -> Do:
     yield NvimIO.pure(handlers)
 
 
+# FIXME handlers cannot be obtained while the plugin is initializing, as the RpcHandlers function will be reported as
+# 'in use' when it is being polled during definition
+# fetch handlers when using them, i.e. during shutdown
 @do(NS[Env, None])
 def activated(active_rplugin: ActiveRplugin) -> Do:
     ribo_log.debug(f'activated {active_rplugin}')
     spec = active_rplugin.rplugin
     yield NS.delay(__.runtime(f'chromatin/{spec.name}/*'))
     yield NS.modify(__.host_started(active_rplugin))
-    handlers = yield NS.lift(define_handlers(active_rplugin))
-    yield NS.modify(__.add_handlers(spec, handlers))
+    # handlers = yield NS.lift(define_handlers(active_rplugin))
+    # yield NS.modify(__.add_handlers(spec, handlers))
 
 
 @do(NS[Env, ActiveRplugin])
@@ -148,8 +151,14 @@ def reboot_plugins(plugins: List[str]) -> Do:
 def activation_complete() -> Do:
     venvs = yield NS.inspect(_.uninitialized)
     prefixes = venvs / _.name / camelcase
+    @do(NvimIO[None])
+    def rplugin_stage(prefix: str, num: int) -> Do:
+        cmd = f'{prefix}Stage{num}'
+        exists = yield NvimIO.delay(__.command_exists(cmd))
+        if exists:
+            yield NvimIO.cmd_sync(cmd)
     def stage(num: int) -> NvimIO[None]:
-        return prefixes.traverse(lambda a: NvimIO.cmd_sync(f'{a}Stage{num}'), NvimIO)
+        return prefixes.traverse(L(rplugin_stage)(_, num), NvimIO)
     yield NS.lift(Lists.range(1, 5).traverse(stage, NvimIO))
     yield NS.modify(__.initialization_complete())
 
@@ -184,6 +193,9 @@ def venv_setup_result(result: List[Either[str, Venv]]) -> Do:
 def install_plugins_result(results: List[Either[IOException, SubprocessResult[Venv]]]) -> Maybe[Message]:
     venvs = results.flat_map(__.cata(ReplaceVal(Nil), List))
     errors = results.flat_map(__.cata(List, ReplaceVal(Nil)))
+    ribo_log.debug(f'installed plugins: {venvs}')
+    if errors:
+        ribo_log.debug(f'error installing plugins: {errors}')
     return venvs, errors
 
 
@@ -206,8 +218,8 @@ def install_plugins(venvs: List[Venv], update: Boolean) -> Do:
     def subprocs(env: Env) -> Do:
         procs = yield venvs.traverse(install_venv, Either)
         yield Right(GatherSubprocs(procs, install_plugins_result, timeout=60))
-    pvenvs = yield NS.inspect(subprocs)
-    yield NS.from_either(pvenvs)
+    procs = yield NS.inspect(subprocs)
+    yield NS.from_either(procs)
 
 
 @do(NS[Env, None])

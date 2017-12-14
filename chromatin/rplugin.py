@@ -2,6 +2,7 @@ import pkg_resources
 
 from amino import Either, Boolean, Path, Maybe, L, _
 from amino.dispatch import dispatch_alg
+from amino.boolean import false
 
 from chromatin.model.venv import (VenvStatus, VenvExistent, VenvAbsent, cons_venv, VenvPackageStatus,
                                   VenvPackageExistent, VenvPackageAbsent, Venv)
@@ -32,6 +33,18 @@ def venv_package_installed(venv: Venv) -> Boolean:
     return venv_package_status_main(venv).exists
 
 
+class VenvStatusCheck:
+
+    def venv_existent(self, status: VenvExistent) -> Boolean:
+        return venv_package_installed(status.venv)
+
+    def venv_absent(self, status: VenvAbsent) -> Boolean:
+        return false
+
+
+venv_status_check = dispatch_alg(VenvStatusCheck(), VenvStatus)
+
+
 class RpluginFacade:
 
     def __init__(self, base_dir: Path) -> None:
@@ -52,9 +65,12 @@ class RpluginFacade:
 
     def ready_venv_rplugin(self, rplugin: VenvRplugin) -> RpluginStatus:
         venv_status = check_venv(self.base_dir, rplugin)
-        package_status = Boolean(venv_status.exists and venv_package_installed(venv_status.venv))
-        ctor = package_status.cata(RpluginReady, RpluginAbsent)
+        ctor = venv_status_check(venv_status).cata(RpluginReady, RpluginAbsent)
         return ctor(rplugin)
+
+
+def rplugin_installed(base_dir: Path, rplugin: Rplugin) -> RpluginStatus:
+    return RpluginFacade(base_dir).check(rplugin)
 
 
 __all__ = ('RpluginFacade',)
