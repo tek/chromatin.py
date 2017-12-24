@@ -1,27 +1,25 @@
-from amino import do, __, List, _, Boolean, L, Path
+from amino import do, __, List, _, Boolean, L
 from amino.do import Do
 from amino.state import State
 
 from ribosome.nvim.io import NS
 from ribosome.trans.api import trans
-from ribosome.trans.message_base import Message
-from ribosome.trans.action import TransM
+from ribosome.trans.action import TransM, Info, LogMessage
 from ribosome.trans.effect import GatherIOs
-from ribosome.trans.messages import Info
-from ribosome.logging import ribo_log
 
 from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, venv_setup_result,
-                                             add_installed)
+                                             already_installed)
 from chromatin import Env
 from chromatin.model.rplugin import Rplugin, cons_rplugin
 from chromatin.components.core.trans.install import install_missing, install_result
 from chromatin.model.rplugin import RpluginReady, VenvRplugin
 from chromatin.model.venv import bootstrap
 from chromatin.rplugin import RpluginFacade
+from chromatin.util import resources
 
 
 @trans.free.result(trans.st)
-@do(NS[Env, Message])
+@do(NS[Env, List[Rplugin]])
 def init() -> Do:
     yield add_crm_venv()
     yield NS.delay(__.vars.set_p('started', True))
@@ -37,16 +35,16 @@ def setup_venvs() -> Do:
     '''
     venv_dir = yield NS.inspect_f(_.venv_dir)
     rplugin_facade = RpluginFacade(venv_dir)
-    plugins = yield NS.inspect(_.plugins)
+    plugins = yield NS.inspect(_.rplugins)
     rplugin_status = plugins / rplugin_facade.check
     ready, absent = rplugin_status.split_type(RpluginReady)
-    yield (ready / _.rplugin).traverse(add_installed, State).nvim
+    yield (ready / _.rplugin).traverse(L(already_installed)(venv_dir, _), State).nvim
     absent_venvs, other = (absent / _.rplugin).split_type(VenvRplugin)
     yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(venv_dir, _)), venv_setup_result, timeout=30))
 
 
 @trans.free.unit(trans.st)
-def post_setup() -> NS[Env, List[Message]]:
+def post_setup() -> NS[Env, None]:
     return activate_newly_installed()
 
 
@@ -81,17 +79,11 @@ def stage_1() -> Do:
     yield plugins_added(plugins).m
 
 
-def show_plugins_message(venv_dir: Path, plugins: List[Rplugin]) -> str:
-    venv_dir_msg = f'virtualenv dir: {venv_dir}'
-    plugins_desc = plugins.map(_.spec).cons('Configured plugins:')
-    return plugins_desc.cons(venv_dir_msg).join_lines
-
-
-@trans.free.one(trans.st)
-@do(NS[Env, Message])
+@trans.free.cons(trans.st, trans.log)
+@do(NS[Env, LogMessage])
 def show_plugins() -> Do:
     venv_dir = yield NS.inspect_f(_.venv_dir)
-    yield NS.inspect(lambda data: Info(show_plugins_message(venv_dir, data.plugins)))
+    yield NS.inspect(lambda data: Info(resources.show_plugins(venv_dir, data.rplugins)))
 
 
 @trans.free.do()

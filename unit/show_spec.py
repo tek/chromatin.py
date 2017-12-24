@@ -2,16 +2,19 @@ from kallikrein import k, Expectation
 from kallikrein.matchers.maybe import be_just
 
 from ribosome.test.integration.run import DispatchHelper
-from ribosome.trans.messages import Info
+from ribosome.trans.action import LogMessage, Info
+from ribosome.nvim.io import NS
+from ribosome.trans.send_message import transform_data_state
 
-from amino import Map, List, Right, Path
+from amino import List, Just, __
 from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
 
-from chromatin import config
 from chromatin.model.rplugin import Rplugin
-from chromatin.components.core.trans.setup import show_plugins_message
-from chromatin.model.venv import Venv, ActiveVenv
+from chromatin import config
+from chromatin.util import resources
+
+from unit._support.log_buffer_env import LogBufferEnv
 
 name = 'flagellum'
 
@@ -31,21 +34,17 @@ class ShowSpec(SpecBase):
             chromatin_rplugins=[dict(name=name, spec=self.spec)],
             chromatin_venv_dir=str(dir),
         )
-        venv = Venv(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null')))
-        channel = 3
-        pid = 1111
-        active = ActiveVenv(venv, channel, pid)
+        rplugin = Rplugin.cons(name, self.spec)
         plugin = Rplugin.cons('flagellum', self.spec)
-        helper0 = DispatchHelper.cons(config, 'core', vars=vars)
+        helper0 = DispatchHelper.cons(config.copy(state_ctor=LogBufferEnv.cons), vars=vars)
         data0 = helper0.state.data
-        data = data0.copy(
-            plugins=List(plugin),
-            venvs=Map({name: venv}),
-            active=List(active),
-            installed=List(venv),
+        data = data0.copy(rplugins=List(rplugin))
+        def logger(msg: LogMessage) -> NS[LogBufferEnv, None]:
+            return transform_data_state(NS.modify(__.append1.log_buffer(msg)))
+        helper = helper0.copy(
+            state=helper0.state.copy(data=data, logger=Just(logger)),
         )
-        helper = helper0.copy(state=helper0.state.copy(data=data))
         r = helper.loop('chromatin:command:show_plugins').unsafe(helper.vim)
-        return k(r.message_log.head).must(be_just(Info(show_plugins_message(dir, List(plugin)))))
+        return k(r.data.log_buffer.head).must(be_just(Info(resources.show_plugins(dir, List(plugin)))))
 
 __all__ = ('ShowSpec',)

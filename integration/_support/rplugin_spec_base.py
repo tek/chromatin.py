@@ -10,7 +10,7 @@ from amino import Maybe, Path, Nothing
 
 from ribosome.test.integration.klk import later
 
-from chromatin.model.rplugin import Rplugin, RpluginReady
+from chromatin.model.rplugin import Rplugin, RpluginReady, cons_rplugin
 from chromatin.model.venv import VenvExistent, Venv
 from chromatin.rplugin import check_venv, rplugin_installed
 
@@ -24,6 +24,7 @@ class RpluginSpecBase(DefaultSpec):
         self.vim.vars.set_p('autostart', False)
         self.vim.vars.set_p('autoreboot', False)
         self.vim.vars.set_p('handle_crm', False)
+        self.vim.vars.set_p('debug_pythonpath', True)
 
     def plug_exists(self, name: str, **kw: Any) -> Expectation:
         cmd = f'{name}Test'
@@ -35,7 +36,10 @@ class RpluginSpecBase(DefaultSpec):
 
     def package_installed(self, base_dir: Path, rplugin: Rplugin) -> Expectation:
         return later(
-            self.venv_existent(base_dir, rplugin) & kf(rplugin_installed, rplugin).must(have_type(RpluginReady)), 20, .5
+            self.venv_existent(base_dir, rplugin) &
+            kf(rplugin_installed, base_dir, rplugin).must(have_type(RpluginReady)),
+            20,
+            .5,
         )
 
     def plugin_venv(self, base_dir: Path, rplugin: Rplugin) -> Venv:
@@ -50,9 +54,9 @@ class RpluginSpecBase(DefaultSpec):
         return dir
 
     def setup_one(self, name: str, venv_dir: Maybe[Path]=Nothing) -> Rplugin:
-        plugin = Rplugin(name=name, spec=name)
+        plugin = cons_rplugin(name, name)
         path = fixture_path('rplugin', name)
-        self.json_cmd_sync('Cram', str(path), name=name)
+        self.cmd_sync('Cram', str(path), name)
         return plugin
 
     def setup_one_with_venvs(self, name: str, venv_dir: Maybe[Path] = Nothing) -> Tuple[Path, Rplugin]:

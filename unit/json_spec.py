@@ -7,7 +7,7 @@ from amino.json import dump_json, decode_json
 from ribosome.config import Config
 
 from chromatin.model.rplugin import cons_rplugin
-from chromatin.model.venv import Venv
+from chromatin.model.venv import Venv, VenvMeta
 from chromatin import Env
 
 
@@ -19,8 +19,8 @@ class JsonSpec:
 
     def venv(self) -> Expectation:
         p = Path('/')
-        plugin = cons_rplugin('spec', 'name')
-        venv = Venv(plugin, p, Right(p), Right(p))
+        rplugin = cons_rplugin('spec', 'name')
+        venv = Venv(rplugin, VenvMeta(rplugin.name, p, Right(p), Right(p)))
         return k(dump_json(venv)).must(be_right)
 
     def env(self) -> Expectation:

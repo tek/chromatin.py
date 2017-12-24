@@ -14,7 +14,6 @@ from amino import Path, Just, _, L, List
 from ribosome.test.integration.klk import later
 
 from chromatin.util import resources
-from chromatin.components.core.messages import AlreadyActive, Deactivated, Deactivate, Activated, SetupPlugins
 from chromatin.model.rplugin import Rplugin
 
 from integration._support.rplugin_spec_base import RpluginSpecBase
@@ -109,21 +108,24 @@ class ActivateFlagSpec(ActivateSpec):
     @ensure_venv
     def twice(self) -> Expectation:
         self.cmd_sync('CrmActivate')
-        return self.seen_message(AlreadyActive)
+        return self._log_line(-1, be_just(end_with(resources.already_active(List(self.name)))))
 
+    # FIXME channel is not being shut down
     @ensure_venv
     def deactivate(self) -> Expectation:
-        self.seen_message(SetupPlugins)
-        self.seen_message(Activated)
+        self.seen_trans('setup_plugins')
         plug_channel: Callable[[], int] = lambda: self.state.active.head / _.channel | -1
         later(kf(plug_channel).must(not_equal(-1)))
         channel = plug_channel()
         pid = L(self.vim.call)('jobpid', channel)
         later(kf(pid).must(be_right(greater(0))))
         self.cmd_sync('CrmDeactivate')
-        self.seen_message(Deactivate)
-        self.seen_message(Deactivated)
-        return self.command_exists_not('FlagTest') & self.var_becomes('flagellum_quit', 1) & kf(pid).must(be_right(0))
+        self.seen_trans('deactivate')
+        return (
+            self.command_exists_not('FlagTest') &
+            self.var_becomes('flagellum_quit', 1) &
+            later(kf(pid).must(be_right(0)))
+        )
 
 
 class ActivateTwoSpec(ActivateSpec):

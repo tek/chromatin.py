@@ -1,42 +1,76 @@
-import os
-import neovim
+from amino import List, __
 
-from amino import Path
-from amino.logging import amino_root_file_logging, TEST
+from ribosome.config import Config
+from ribosome.request.handler.handler import RequestHandler
+from ribosome.request.handler.prefix import Full, Plain
+from ribosome.trans.api import trans
+from ribosome.nvim import NvimIO
+from ribosome import ribo_log
 
-from ribosome import NvimPlugin as NPlug, command, function
-
-logfile = Path(os.environ['RIBOSOME_LOG_FILE'])
-amino_root_file_logging(logfile=logfile, level=TEST)
 name = 'flagellum'
 
 
-@neovim.plugin
-class NvimPlugin(NPlug, pname=name, prefix='flag'):
+@trans.free.unit(trans.nio)
+def stage_1() -> NvimIO[None]:
+    return NvimIO.delay(__.vars.set('flag', 1))
 
-    def start_plugin(self) -> None:
-        pass
 
-    @command(sync=True)
-    def flag_test(self) -> None:
-        self.log.info(f'{name} working')
+@trans.free.unit()
+def test() -> None:
+    ribo_log.info(f'{name} working')
 
-    @command(sync=True)
-    def flag_arg_test(self, num: int) -> None:
-        value = self.vim.vars.p('value') | 'failure'
-        self.log.info(f'{value} {num}')
 
-    @command(sync=True)
-    def flag_conf_test(self) -> None:
-        value = self.vim.vars.p('value') | 'failure'
-        self.log.info(value)
+@trans.free.result()
+def reboot_test() -> int:
+    return 17
 
-    @function()
-    def flag_reboot_test(self) -> int:
-        return 17
 
-    @neovim.autocmd('VimEnter')
-    def vim_enter(self):
-        self.log.info('autocmd works')
+@trans.free.unit(trans.nio)
+def arg_test(num: int) -> NvimIO[None]:
+    value = yield NvimIO.delay(lambda v: v.vars.p('value') | 'failure')
+    ribo_log.info(f'{value} {num}')
 
-__all__ = ('NvimPlugin',)
+
+@trans.free.unit(trans.nio)
+def conf_test() -> NvimIO[None]:
+    value = yield NvimIO.delay(lambda v: v.vars.p('value') | 'failure')
+    ribo_log.info(value)
+
+
+@trans.free.unit()
+def vim_enter() -> None:
+    ribo_log.info('autocmd works')
+
+
+@trans.free.unit(trans.nio)
+def stage_2() -> NvimIO[None]:
+    return NvimIO.delay(__.vars.set('cil', 1))
+
+
+@trans.free.unit()
+def stage_4() -> None:
+    ribo_log.info(f'{name} initialized')
+
+
+@trans.free.unit(trans.nio)
+def quit() -> NvimIO[None]:
+    return NvimIO.delay(__.vars.set('quit', 1))
+
+
+config = Config.cons(
+    name,
+    prefix='flag',
+    request_handlers=List(
+        RequestHandler.trans_cmd(stage_1)(prefix=Full()),
+        RequestHandler.trans_cmd(stage_2)(prefix=Full()),
+        RequestHandler.trans_cmd(stage_4)(prefix=Full()),
+        RequestHandler.trans_cmd(quit)(prefix=Full()),
+        RequestHandler.trans_cmd(test)(),
+        RequestHandler.trans_cmd(arg_test)(),
+        RequestHandler.trans_cmd(conf_test)(),
+        RequestHandler.trans_function(reboot_test)(sync=True),
+        RequestHandler.trans_autocmd(vim_enter)(prefix=Plain()),
+    ),
+)
+
+__all__ = ('config',)

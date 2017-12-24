@@ -6,6 +6,7 @@ from kallikrein.matchers.maybe import be_just
 from amino.test.path import fixture_path, base_dir
 from amino.test import temp_dir
 from amino import List, Path, _
+from amino.json import dump_json
 
 from ribosome.test.integration.klk import later
 
@@ -43,9 +44,10 @@ class TwoExplicitSpec(RpluginSpecBase):
         self.vim.vars.set_p('venv_dir', str(self.dir))
 
     def read_conf(self) -> Expectation:
-        return k(self.state.plugins).must(have_length(2))
+        return k(self.state.rplugins).must(have_length(2))
 
     def bootstrap(self) -> Expectation:
+        self.vim.cmd_once_defined('ChromatinStage1')
         self.cmd_sync('CrmSetupPlugins')
         self.seen_trans('setup_venvs')
         self.venv_existent(self.dir, plugin1)
@@ -64,7 +66,7 @@ class AutostartAfterAddSpec(RpluginSpecBase):
     def auto_cram(self) -> Expectation:
         self.vim.vars.set_p('autostart', True)
         venvs, plugin = self.setup_one_with_venvs('flagellum')
-        self.seen_message(SetupPlugins)
+        self.seen_trans('setup_plugins')
         self.venv_existent(venvs, plugin, timeout=4)
         self.package_installed(venvs, plugin)
         return later(self.plug_exists('Flag'))
@@ -122,10 +124,10 @@ class BootstrapSpec(RpluginSpecBase):
         self.command_exists_not('Cram')
         self.vim.runtime('chromatin.nvim/plugin/bootstrap')
         self.cmd('BootstrapChromatin')
-        self.command_exists('ChromatinStage1', timeout=20)
+        self.command_exists('ChromatinStage1', timeout=10)
         self.cmd_sync('ChromatinStage1')
         self.cmd_sync('CrmSetupPlugins')
-        return self.plug_exists('Flag', timeout=20)
+        return self.plug_exists('Flag', timeout=10)
 
 
 # TODO move to `ActivateSpec`, change `ensure_env` to move the temp venv to `_temp` instead of using the `temp` dir
@@ -139,12 +141,13 @@ class RebootSpec(RpluginSpecBase):
         self.activate_one(name, 'Flag')
         later(kf(self.vim.call, 'FlagRebootTest').must(be_right(13)))
         path = fixture_path('rplugin', 'flagellum2')
-        self.json_cmd_sync('CrmUpdateState', 'vim_plugin', name, spec=str(path))
-        self.seen_message(UpdateState)
-        later(kf(lambda: self.state.plugins.head.map(_.spec)).must(be_just(str(path))))
+        json = dump_json(dict(patch=dict(query=f'rplugins(name={name})', data=dict(spec=str(path))))).get_or_raise()
+        self.vim.cmd(f'CrmUpdateState {json}')
+        self.seen_trans('update_state')
+        later(kf(lambda: self.state.rplugins.head.map(_.spec)).must(be_just(str(path))))
         self.cmd_sync('CrmUpdate')
-        self.seen_message(UpdatePlugins)
-        self.seen_message(Updated)
+        self.seen_trans('update_plugins_io')
+        self.seen_trans('updated_plugins')
         self.cmd_sync('CrmReboot')
         return later(kf(self.vim.call, 'FlagRebootTest').must(be_right(17)))
 

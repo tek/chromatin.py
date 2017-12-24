@@ -43,6 +43,6 @@ def start_host(python_exe: Path, bin_path: Path, plugin_path: Path, debug: bool=
 
 
 def stop_host(channel: int) -> NvimIO[None]:
-    return NvimIO.call('jobstop', channel)
+    return NvimIO.delay(lambda v: v.vim.async_call(lambda vv: vv.call('jobstop', channel)))
 
 __all__ = ('start_host', 'stop_host')

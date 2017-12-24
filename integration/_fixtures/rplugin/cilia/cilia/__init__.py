@@ -1,36 +1,45 @@
-import os
-import neovim
-import time
+from amino import List, __
+from amino.boolean import true
 
-from amino import Path
-from amino.logging import amino_root_file_logging, TEST
+from ribosome.config import Config
+from ribosome.request.handler.handler import RequestHandler
+from ribosome.request.handler.prefix import Full
+from ribosome.trans.api import trans
+from ribosome.nvim import NvimIO
+from ribosome import ribo_log
 
-from ribosome import AutoPlugin
-from ribosome.request.command import command
-from ribosome.settings import Config
-
-logfile = Path(os.environ['RIBOSOME_LOG_FILE'])
-amino_root_file_logging(logfile=logfile, level=TEST)
 name = 'cilia'
 
-config = Config(name=name, prefix='cil')
+
+@trans.free.unit(trans.nio)
+def stage_1() -> NvimIO[None]:
+    return NvimIO.delay(__.vars.set('cil', 2))
 
 
-@neovim.plugin
-class NvimPlugin(AutoPlugin):
+@trans.free.unit()
+def test() -> None:
+    ribo_log.info(f'{name} working')
 
-    @command(sync=True)
-    def cil_test(self) -> None:
-        self.log.info(f'{name} working')
 
-    def stage_1(self) -> None:
-        time.sleep(1)
-        self.vim.vars.set('cil', 2)
+@trans.free.unit(trans.nio)
+def stage_2() -> NvimIO[None]:
+    return NvimIO.delay(__.vars.set('flag', 2))
 
-    def stage_2(self) -> None:
-        self.vim.vars.set('flag', 2)
 
-    def stage_4(self) -> None:
-        self.log.info(f'{name} initialized')
+@trans.free.unit()
+def stage_4() -> None:
+    ribo_log.info(f'{name} initialized')
 
-__all__ = ('NvimPlugin',)
+
+config = Config.cons(
+    name,
+    prefix='cil',
+    request_handlers=List(
+        RequestHandler.trans_cmd(stage_1)(prefix=Full(), sync=true),
+        RequestHandler.trans_cmd(stage_2)(prefix=Full(), sync=true),
+        RequestHandler.trans_cmd(stage_4)(prefix=Full(), sync=true),
+        RequestHandler.trans_cmd(test)(),
+    ),
+)
+
+__all__ = ('config',)

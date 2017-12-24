@@ -16,17 +16,17 @@ from ribosome.logging import ribo_log
 from chromatin.model.rplugin import Rplugin, VenvRplugin
 
 
-class Venv(Dat['Venv']):
+class VenvMeta(Dat['VenvMeta']):
 
     @staticmethod
-    def from_ns(rplugin: VenvRplugin, dir: Path, context: SimpleNamespace) -> 'Venv':
+    def from_ns(rplugin: str, dir: Path, context: SimpleNamespace) -> 'Venv':
         exe = Try(lambda: context.env_exe) / Path
         bin_path = Try(lambda: context.bin_path) / Path
-        return Venv(rplugin, dir, exe, bin_path)
+        return VenvMeta(rplugin, dir, exe, bin_path)
 
     def __init__(
             self,
-            rplugin: VenvRplugin,
+            rplugin: str,
             dir: Path,
             python_executable: Either[str, Path],
             bin_path: Either[str, Path]
@@ -36,8 +36,20 @@ class Venv(Dat['Venv']):
         self.python_executable = python_executable
         self.bin_path = bin_path
 
-    def _arg_desc(self) -> List[str]:
-        return List(str(self.rplugin), str(self.dir))
+    @property
+    def name(self) -> str:
+        return self.rplugin
+
+
+class Venv(Dat['Venv']):
+
+    def __init__(self, rplugin: VenvRplugin, meta: VenvMeta) -> None:
+        self.rplugin = rplugin
+        self.meta = meta
+
+    @property
+    def dir(self) -> Path:
+        return self.meta.dir
 
     @property
     def site(self) -> Path:
@@ -112,7 +124,7 @@ def build(dir: Path, plugin: VenvRplugin) -> Do:
 def cons_venv(dir: Path, rplugin: VenvRplugin) -> Venv:
     builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
     context = builder.ensure_directories(str(dir))
-    return Venv.from_ns(rplugin, dir, context)
+    return Venv(rplugin, VenvMeta.from_ns(rplugin.name, dir, context))
 
 
 def cons_venv_under(base_dir: Path, rplugin: VenvRplugin) -> Venv:
