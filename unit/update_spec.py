@@ -79,7 +79,7 @@ class UpdateSpec(SpecBase):
         helper = helper0.copy(
             state=helper0.state.copy(data=data, logger=Just(logger)),
         )
-        r = helper.loop('chromatin:command:update', ('flagellum',)).unsafe(helper.vim)
+        r = helper.loop('command:update', ('flagellum',)).unsafe(helper.vim)
         return k(r.data.log_buffer.head).must(be_just(Info(resources.updated_plugin(rplugin.name))))
 
 __all__ = ('UpdateSpec',)

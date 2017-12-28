@@ -60,7 +60,7 @@ class AddSpec(SpecBase):
             else:
                 return execute_io(dio)
         helper = DispatchHelper.cons(config, vars=vars, responses=responses, io_executor=x_io)
-        r = helper.loop('chromatin:command:cram', (self.spec, 'flagellum')).unsafe(helper.vim)
+        r = helper.loop('command:cram', (self.spec, 'flagellum')).unsafe(helper.vim)
         return k(r.data.venvs.k).must(contain(name)) & k(r.data.active).must(contain(ActiveRpluginMeta(name, 3, 1111)))
 
     def directory(self) -> Expectation:
@@ -76,7 +76,7 @@ class AddSpec(SpecBase):
         def responses(req: str) -> Any:
             return responses_strict.lift(req).o(Just(0))
         helper = DispatchHelper.cons(config, responses=responses)
-        r = helper.loop('chromatin:command:cram', (spec, 'flagellum')).unsafe(helper.vim)
+        r = helper.loop('command:cram', (spec, 'flagellum')).unsafe(helper.vim)
         return k(r.data.active).must(contain(ActiveRpluginMeta(name, 3, 1111)))
 
 __all__ = ('AddSpec',)

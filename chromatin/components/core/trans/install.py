@@ -101,7 +101,7 @@ def update_plugins(*ps: str) -> Do:
 
 @trans.free.unit(trans.st)
 def reboot(*plugins: str) -> NS[Env, None]:
-    return reboot_plugins(Lists.wrap(plugins))
+    return reboot_plugins(Lists.wrap(plugins)).replace(None)
 
 
 __all__ = ('install_result', 'install_missing', 'update_plugins')

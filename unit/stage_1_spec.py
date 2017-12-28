@@ -64,7 +64,7 @@ class Stage1Spec(SpecBase):
             else:
                 return execute_io(dio)
         helper = DispatchHelper.cons(config, vars=vars, responses=responses, io_executor=x_io)
-        r = helper.loop('chromatin:command:stage_1').unsafe(helper.vim)
+        r = helper.loop('command:stage_1').unsafe(helper.vim)
         return k(r.data.venvs.k).must(contain(name)) & k(r.data.active).must(contain(active_rplugin))
 
 __all__ = ('Stage1Spec',)

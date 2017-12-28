@@ -44,7 +44,7 @@ class ShowSpec(SpecBase):
         helper = helper0.copy(
             state=helper0.state.copy(data=data, logger=Just(logger)),
         )
-        r = helper.loop('chromatin:command:show_plugins').unsafe(helper.vim)
+        r = helper.loop('command:show_plugins').unsafe(helper.vim)
         return k(r.data.log_buffer.head).must(be_just(Info(resources.show_plugins(dir, List(plugin)))))
 
 __all__ = ('ShowSpec',)

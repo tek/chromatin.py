@@ -1,6 +1,5 @@
 import sys
 import traceback
-from pathlib import Path
 
 
 def echo(nvim: 'neovim.api.Nvim', msg: str) -> None:
@@ -28,7 +27,6 @@ def run() -> int:
             raise
     except Exception:
         msg = traceback.format_exc()
-        Path('errlog').write_text(msg)
         print(msg, file=sys.stderr)
         return 3
 
