@@ -37,7 +37,7 @@ class RpluginSpecBase(DefaultSpec):
     def package_installed(self, base_dir: Path, rplugin: Rplugin) -> Expectation:
         return later(
             self.venv_existent(base_dir, rplugin) &
-            kf(rplugin_installed, base_dir, rplugin).must(have_type(RpluginReady)),
+            kio(rplugin_installed(base_dir), rplugin).must(have_type(RpluginReady)),
             20,
             .5,
         )

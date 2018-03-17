@@ -7,23 +7,28 @@ from amino.state import State, EitherState
 from amino.io import IOException
 from amino.func import ReplaceVal
 from amino.util.string import camelcaseify, camelcase
-from amino.dispatch import dispatch_alg
+from amino.dispatch import dispatch_alg, PatMat
 from amino.json import decode_json
+from amino.lenses.lens import lens
 
 from ribosome.nvim.io import NS
 from ribosome.trans.message_base import Message
-from ribosome.trans.effect import GatherSubprocs
 from ribosome.trans.send_message import transform_data_state
 from ribosome.process import SubprocessResult, Subprocess
 from ribosome.logging import ribo_log
 from ribosome.request.rpc import DefinedHandler, RpcHandlerSpec
 from ribosome.nvim import NvimIO
+from ribosome.trans.effects import GatherSubprocs
+from ribosome.trans.api import trans
 
 from chromatin import Env
-from chromatin.model.venv import Venv, cons_venv, VenvMeta
+from chromatin.model.venv import Venv, cons_venv, VenvMeta, cons_venv_under
 from chromatin.host import start_host, stop_host
 from chromatin.util import resources
 from chromatin.model.rplugin import Rplugin, ActiveRplugin, DirRplugin, VenvRplugin, SiteRplugin, ActiveRpluginMeta
+from chromatin.settings import setting
+from chromatin.config.resources import ChromatinResources
+from chromatin.rplugin import venv_package_installed
 
 
 @do(NvimIO[List[DefinedHandler]])
@@ -51,14 +56,20 @@ def activated(active_rplugin: ActiveRplugin) -> Do:
     yield NS.modify(__.host_started(active_rplugin.meta))
 
 
-@do(NS[Env, ActiveRplugin])
+@do(NS[ChromatinResources, ActiveRplugin])
 def start_rplugin_host(rplugin: Rplugin, python_exe: Path, bin_path: Path, plugin_path: Path) -> Do:
-    debug = yield NS.inspect_f(_.settings.debug_pythonpath.value_or_default)
+    debug = setting(_.debug_pythonpath)
     channel, pid = yield NS.lift(start_host(python_exe, bin_path, plugin_path, debug))
-    yield NS.pure(ActiveRplugin(rplugin, ActiveRpluginMeta(rplugin.name, channel, pid)))
+    return ActiveRplugin(rplugin, ActiveRpluginMeta(rplugin.name, channel, pid))
 
 
-class ActivateRpluginIO:
+@do(NS[ChromatinResources, Venv])
+def venv_from_rplugin(rplugin: VenvRplugin) -> Do:
+    venv_dir = yield venv_dir_setting()
+    yield NS.from_io(cons_venv_under(venv_dir, rplugin))
+
+
+class activate_rplugin_io(PatMat, alg=Rplugin):
 
     def dir_rplugin(self, rplugin: DirRplugin) -> NS[Env, ActiveRplugin]:
         python_exe = Path(sys.executable)
@@ -66,39 +77,36 @@ class ActivateRpluginIO:
         plugin_path = Path(rplugin.spec) / '__init__.py'
         return start_rplugin_host(rplugin, python_exe, bin_path, plugin_path)
 
-    @do(NS[Env, ActiveRplugin])
+    @do(NS[ChromatinResources, ActiveRplugin])
     def venv_rplugin(self, rplugin: VenvRplugin) -> Do:
-        venv = yield NS.inspect_f(__.venv_from_rplugin(rplugin))
+        venv = yield venv_from_rplugin(rplugin)
         python_exe = yield NS.from_either(venv.meta.python_executable)
         bin_path = yield NS.from_either(venv.meta.bin_path)
         yield start_rplugin_host(venv.rplugin, python_exe, bin_path, venv.plugin_path)
 
     # TODO start with module
-    def site_rplugin(self, rplugin: SiteRplugin) -> NS[Env, ActiveRplugin]:
+    def site_rplugin(self, rplugin: SiteRplugin) -> NS[ChromatinResources, ActiveRplugin]:
         return NS.error('site rplugins not implemented yet')
 
 
-activate_rplugin_io = dispatch_alg(ActivateRpluginIO(), Rplugin)
-
-
-@do(NS[Env, None])
+@do(NS[ChromatinResources, None])
 def activate_rplugin(rplugin: Rplugin) -> Do:
-    active_rplugin = yield activate_rplugin_io(rplugin)
-    yield activated(active_rplugin)
+    active_rplugin = yield activate_rplugin_io.match(rplugin)
+    yield activated(active_rplugin).zoom(lens.data)
 
 
-@do(NS[Env, List[Rplugin]])
+@do(NS[ChromatinResources, List[Rplugin]])
 def activate_multi(new_rplugins: List[Rplugin]) -> Do:
-    active = yield NS.inspect_either(_.active_rplugins)
+    active = yield NS.inspect_either(_.active_rplugins).zoom(lens.data)
     active_rplugins = active / _.rplugin
     already_active, inactive = new_rplugins.split(active_rplugins.contains)
     yield inactive.traverse(activate_rplugin, NS).replace(already_active)
 
 
-@do(NS[Env, List[Rplugin]])
+@do(NS[ChromatinResources, List[Rplugin]])
 def activate_by_names(plugins: List[str]) -> Do:
     getter = _.ready_rplugins if plugins.empty else __.ready_by_name(plugins)
-    rplugins = yield NS.inspect_either(getter)
+    rplugins = yield NS.inspect_either(getter).zoom(lens.data)
     yield (
         NS.error(resources.no_plugins_match_for_activation(plugins))
         if rplugins.empty else
@@ -106,7 +114,7 @@ def activate_by_names(plugins: List[str]) -> Do:
     )
 
 
-def activate_all() -> NS[Env, List[Rplugin]]:
+def activate_all() -> NS[ChromatinResources, List[Rplugin]]:
     return activate_by_names(Nil)
 
 
@@ -148,7 +156,7 @@ def deactivate_by_names(plugins: List[str]) -> Do:
 
 @do(NS[Env, List[Rplugin]])
 def reboot_plugins(plugins: List[str]) -> Do:
-    yield deactivate_by_names(plugins)
+    yield deactivate_by_names(plugins).zoom(lens.data)
     yield activate_by_names(plugins)
 
 
@@ -171,11 +179,11 @@ def activation_complete() -> Do:
     yield NS.modify(__.initialization_complete())
 
 
-@do(NS[Env, None])
+@do(NS[ChromatinResources, None])
 def activate_newly_installed() -> Do:
-    new = yield NS.inspect_either(_.inactive)
+    new = yield NS.inspect_either(_.inactive).zoom(lens.data)
     yield activate_multi(new)
-    yield activation_complete()
+    yield activation_complete().zoom(lens.data)
 
 
 def add_venv(venv: VenvMeta) -> State[Env, None]:
@@ -194,25 +202,14 @@ def already_installed(venv_dir: Path, rplugin: Rplugin) -> Do:
         yield add_venv(cons_venv(venv_dir, rplugin).meta)
 
 
-@do(EitherState[Env, None])
-def venv_setup_result(result: List[Either[str, Venv]]) -> Do:
-    def split(z: Tuple[List[str], List[Venv]], a: Either[str, Venv]) -> Tuple[List[str], List[Venv]]:
-        err, vs = z
-        return a.cata((lambda e: (err.cat(e), vs)), (lambda v: (err, vs.cat(v))))
-    errors, venvs = result.fold_left((Nil, Nil))(split)
-    yield transform_data_state(venvs.map(_.meta).traverse(add_venv, State)).to(EitherState)
-    error = errors.map(str).join_comma
-    ret = Left(f'failed to setup venvs: {error}') if errors else Right(None)
-    yield EitherState.lift(ret)
-
-
-def install_plugins_result(results: List[Either[IOException, SubprocessResult[Venv]]]) -> Maybe[Message]:
+@trans.free.result(trans.st)
+def install_plugins_result(results: List[Either[IOException, SubprocessResult[Venv]]]) -> NS[Env, Maybe[Message]]:
     venvs = results.flat_map(__.cata(ReplaceVal(Nil), List))
     errors = results.flat_map(__.cata(List, ReplaceVal(Nil)))
     ribo_log.debug(f'installed plugins: {venvs}')
     if errors:
         ribo_log.debug(f'error installing plugins: {errors}')
-    return venvs, errors
+    return NS.pure((venvs, errors))
 
 
 @do(Either[str, Subprocess[Venv]])
@@ -230,21 +227,53 @@ def install_plugins(venvs: List[Venv], update: Boolean) -> Do:
     yield Right(GatherSubprocs(procs, install_plugins_result, timeout=60))
 
 
-@do(NS[Env, None])
+def venv_dir_setting() -> NS[ChromatinResources, Path]:
+    return setting(_.venv_dir)
+
+
+@do(NS[ChromatinResources, None])
 def add_crm_venv() -> Do:
-    handle = yield NS.inspect_f(_.handle_crm)
+    handle = yield setting(_.handle_crm)
     if handle:
         plugin = Rplugin.simple('chromatin')
         yield NS.modify(__.set.chromatin_plugin(Just(plugin)))
-        venv_dir = yield NS.inspect_f(_.venv_dir)
+        venv_dir = yield venv_dir_setting()
         yield NS.modify(__.set.chromatin_venv(Just(cons_venv(plugin, venv_dir))))
 
 
 @do(NS[Env, List[Rplugin]])
 def read_conf() -> Do:
-    plugin_conf = yield NS.inspect_f(_.rplugins_setting)
+    plugin_conf = yield setting(_.rplugins)
     specs = plugin_conf.traverse(Rplugin.from_config, Either)
     yield NS.from_either(specs)
 
 
-__all__ = ('add_crm_venv', 'read_conf', 'install_plugins', 'add_installed')
+@do(NS[Env, List[Rplugin]])
+def rplugins_with_crm() -> Do:
+    rplugins = yield NS.inspect(_.rplugins)
+    crm = yield NS.inspect(_.chromatin_plugin)
+    return rplugins.cons_m(crm)
+
+
+@do(NS[Env, Either[str, Rplugin]])
+def rplugin_by_name(name: str) -> Do:
+    rplugins = yield rplugins_with_crm()
+    return rplugins.find(lambda a: a.name == name).to_either(f'no rplugin with name `{name}`')
+
+
+@do(NS[Env, Venv])
+def venv_from_meta(venv_dir: Path, meta: VenvMeta) -> Do:
+    rplugin_e = yield rplugin_by_name(meta.name)
+    rplugin = yield NS.from_either(rplugin_e)
+    yield NS.from_io(cons_venv_under(venv_dir, rplugin))
+
+
+@do(NS[ChromatinResources, List[Venv]])
+def missing_plugins() -> Do:
+    venv_dir = yield venv_dir_setting()
+    venv_metas = yield NS.inspect(_.venvs.v).zoom(lens.data)
+    venvs = yield venv_metas.traverse(L(venv_from_meta)(venv_dir, _), NS).zoom(lens.data)
+    return venvs.filter_not(venv_package_installed)
+
+
+__all__ = ('add_crm_venv', 'read_conf', 'install_plugins', 'add_installed', 'missing_plugins')

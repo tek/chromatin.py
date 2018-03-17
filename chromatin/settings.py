@@ -1,11 +1,19 @@
+from typing import Callable, TypeVar
+
 from amino import Path, Try, Right, Either, do, Nil
 from amino.do import Do
 from amino.boolean import true, false
 
-from ribosome.config import PluginSettings
-from ribosome.config.settings import bool_setting, path_setting, list_setting
+from ribosome.config.settings import bool_setting, path_setting, list_setting, Settings
+from ribosome.config.setting import Setting
+from ribosome.nvim.io import NS
+from ribosome.config.config import Resources
 
 from chromatin.util.resources import xdg_cache_home, create_venv_dir_error
+
+A = TypeVar('A')
+D = TypeVar('D')
+CC = TypeVar('CC')
 
 handle_crm_help = '''When updating plugins, chromatin can also update itself. To take effect, neovim has to be
 restarted.
@@ -36,7 +44,7 @@ def default_venv_dir() -> Do:
     yield Right(venv_dir)
 
 
-class CrmSettings(PluginSettings):
+class ChromatinSettings(Settings):
 
     def __init__(self) -> None:
         super().__init__('chromatin')
@@ -49,4 +57,20 @@ class CrmSettings(PluginSettings):
         self.autoreboot = bool_setting('autoreboot', 'autoreboot plugins', autoreboot_help, True, Right(true))
 
 
-__all__ = ('CrmSettings',)
+def setting(attr: Callable[[ChromatinSettings], Setting]) -> NS[Resources[D, ChromatinSettings, CC], A]:
+    return NS.inspect_f(lambda a: attr(a.settings).value_or_default)
+
+
+@do(NS[Resources[D, ChromatinSettings, CC], None])
+def update_setting(attr: Callable[[ChromatinSettings], Setting[A]], value: A) -> Do:
+    s = yield NS.inspect(lambda a: attr(a.settings))
+    yield NS.lift(s.update(value))
+
+
+@do(NS[Resources[D, ChromatinSettings, CC], None])
+def ensure_setting(attr: Callable[[ChromatinSettings], Setting[A]], value: A) -> Do:
+    s = yield NS.inspect(lambda a: attr(a.settings))
+    yield NS.lift(s.ensure(value))
+
+
+__all__ = ('ChromatinSettings', 'setting', 'update_setting', 'ensure_setting')

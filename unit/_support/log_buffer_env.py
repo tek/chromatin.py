@@ -1,6 +1,7 @@
 from ribosome.trans.action import LogMessage
-from ribosome.config import Config, PluginSettings
 from ribosome.request.rpc import DefinedHandler
+from ribosome.config.config import Config
+from ribosome.config.settings import Settings
 
 from amino import List, Nil, Nothing, Map, Maybe
 
@@ -12,12 +13,11 @@ from chromatin.model.venv import VenvMeta
 class LogBufferEnv(Env):
 
     @staticmethod
-    def cons(config: Config[PluginSettings, 'LogBufferEnv']) -> 'LogBufferEnv':
-        return LogBufferEnv(config, Nil, Nothing, Nothing, Map(), Nil, Nil, Nil, Map(), log_buffer=Nil)
+    def cons() -> 'LogBufferEnv':
+        return LogBufferEnv(Nil, Nothing, Nothing, Map(), Nil, Nil, Nil, Map(), log_buffer=Nil)
 
     def __init__(
             self,
-            config: Config,
             rplugins: List[Rplugin],
             chromatin_plugin: Maybe[Rplugin],
             chromatin_venv: Maybe[VenvMeta],
@@ -28,7 +28,6 @@ class LogBufferEnv(Env):
             handlers: Map[str, List[DefinedHandler]],
             log_buffer: List[LogMessage]=Nil,
     ) -> None:
-        self.config = config
         self.rplugins = rplugins
         self.chromatin_plugin = chromatin_plugin
         self.chromatin_venv = chromatin_venv

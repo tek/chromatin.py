@@ -5,7 +5,7 @@ import sys
 import pkg_resources
 from types import SimpleNamespace
 
-from amino import Path, IO, do, Boolean, env, Either, Try, List
+from amino import Path, IO, do, Boolean, env, Either, Try
 from amino.boolean import true, false
 from amino.do import Do
 from amino.dat import ADT, Dat
@@ -121,13 +121,14 @@ def build(dir: Path, plugin: VenvRplugin) -> Do:
     )
 
 
-def cons_venv(dir: Path, rplugin: VenvRplugin) -> Venv:
-    builder = venv.EnvBuilder(system_site_packages=False, with_pip=True)
-    context = builder.ensure_directories(str(dir))
+@do(IO[Venv])
+def cons_venv(dir: Path, rplugin: VenvRplugin) -> Do:
+    builder = yield IO.delay(venv.EnvBuilder, system_site_packages=False, with_pip=True)
+    context = yield IO.delay(builder.ensure_directories, str(dir))
     return Venv(rplugin, VenvMeta.from_ns(rplugin.name, dir, context))
 
 
-def cons_venv_under(base_dir: Path, rplugin: VenvRplugin) -> Venv:
+def cons_venv_under(base_dir: Path, rplugin: VenvRplugin) -> IO[Venv]:
     return cons_venv(base_dir / rplugin.name, rplugin)
 
 
@@ -173,4 +174,4 @@ class VenvPackageAbsent(VenvPackageStatus):
         return false
 
 __all__ = ('VenvStatus', 'VenvExistent', 'VenvAbsent', 'VenvPackageAbsent', 'VenvPackageExistent', 'VenvPackageStatus',
-           'Venv', 'ActiveVenv')
+           'Venv', 'ActiveVenv', 'cons_venv_under')

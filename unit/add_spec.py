@@ -54,9 +54,9 @@ class AddSpec(SpecBase):
             return responses_strict.lift(req).o(Just(0))
         def x_io(dio: DIO) -> NS[PluginState, TransAction]:
             if isinstance(dio, GatherIOsDIO):
-                return NS.pure(dio.io.handle_result(List(Right(venv))))
+                return NS.pure(List(Right(venv)))
             elif isinstance(dio, GatherSubprocsDIO):
-                return NS.pure(TransResult((List(SubprocessResult(0, Nil, Nil, venv)), Nil)))
+                return NS.pure(List(Right(SubprocessResult(0, Nil, Nil, venv))))
             else:
                 return execute_io(dio)
         helper = DispatchHelper.cons(config, vars=vars, responses=responses, io_executor=x_io)
@@ -78,5 +78,6 @@ class AddSpec(SpecBase):
         helper = DispatchHelper.cons(config, responses=responses)
         r = helper.loop('command:cram', (spec, 'flagellum')).unsafe(helper.vim)
         return k(r.data.active).must(contain(ActiveRpluginMeta(name, 3, 1111)))
+
 
 __all__ = ('AddSpec',)

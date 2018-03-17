@@ -8,18 +8,19 @@ from ribosome.nvim.io import NS
 from ribosome.plugin_state import PluginState
 from ribosome.dispatch.data import DIO, GatherSubprocsDIO
 from ribosome.dispatch.execute import execute_io
-from ribosome.trans.action import TransResult, TransAction, Info, LogMessage
+from ribosome.trans.action import TransAction, Info, LogMessage
 from ribosome.process import SubprocessResult
-from ribosome.trans.send_message import transform_data_state
 
 from amino import Just, Map, List, Nil, Right, Path, __
 from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
+from amino.lenses.lens import lens
 
 from chromatin import config
 from chromatin.model.rplugin import cons_rplugin, ActiveRpluginMeta
 from chromatin.model.venv import Venv, VenvMeta
 from chromatin.util import resources
+from chromatin.config.resources import ChromatinResources
 
 from unit._support.log_buffer_env import LogBufferEnv
 
@@ -61,7 +62,7 @@ class UpdateSpec(SpecBase):
             return responses_strict.lift(req).o(Just(0))
         def x_io(dio: DIO) -> NS[PluginState, TransAction]:
             return (
-                NS.pure(TransResult((List(SubprocessResult(0, Nil, Nil, venv)), Nil)))
+                NS.pure(List(Right(SubprocessResult(0, Nil, Nil, venv))))
                 if isinstance(dio, GatherSubprocsDIO) else
                 execute_io(dio)
             )
@@ -74,12 +75,13 @@ class UpdateSpec(SpecBase):
             active=List(active),
             ready=List(name),
         )
-        def logger(msg: LogMessage) -> NS[LogBufferEnv, None]:
-            return transform_data_state(NS.modify(__.append1.log_buffer(msg)))
+        def logger(msg: LogMessage) -> NS[ChromatinResources, None]:
+            return NS.modify(__.append1.log_buffer(msg)).zoom(lens.state.data)
         helper = helper0.copy(
             state=helper0.state.copy(data=data, logger=Just(logger)),
         )
         r = helper.loop('command:update', ('flagellum',)).unsafe(helper.vim)
         return k(r.data.log_buffer.head).must(be_just(Info(resources.updated_plugin(rplugin.name))))
+
 
 __all__ = ('UpdateSpec',)

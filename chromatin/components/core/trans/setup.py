@@ -1,50 +1,68 @@
-from amino import do, __, List, _, Boolean, L
+from typing import Tuple
+
+from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left
 from amino.do import Do
-from amino.state import State
+from amino.state import State, EitherState
+from amino.lenses.lens import lens
+from amino.boolean import true
 
 from ribosome.nvim.io import NS
 from ribosome.trans.api import trans
 from ribosome.trans.action import TransM, Info, LogMessage
-from ribosome.trans.effect import GatherIOs
+from ribosome.trans.effects import GatherIOs
 
-from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, venv_setup_result,
-                                             already_installed)
+from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, already_installed,
+                                             add_venv, venv_dir_setting)
 from chromatin import Env
 from chromatin.model.rplugin import Rplugin, cons_rplugin
 from chromatin.components.core.trans.install import install_missing, install_result
 from chromatin.model.rplugin import RpluginReady, VenvRplugin
-from chromatin.model.venv import bootstrap
+from chromatin.model.venv import bootstrap, Venv
 from chromatin.rplugin import RpluginFacade
 from chromatin.util import resources
+from chromatin.settings import setting, ensure_setting
+from chromatin.config.resources import ChromatinResources
 
 
 @trans.free.result(trans.st)
-@do(NS[Env, List[Rplugin]])
+@do(NS[ChromatinResources, List[Rplugin]])
 def init() -> Do:
     yield add_crm_venv()
-    yield NS.delay(__.vars.set_p('started', True))
-    yield NS.delay(__.vars.ensure_p('rplugins', []))
+    yield ensure_setting(_.rplugins, Nil)
     yield read_conf()
 
 
-@trans.free.unit(trans.st, trans.gather_ios, trans.st)
-@do(NS[Env, GatherIOs])
+@trans.free.unit(trans.st)
+@do(EitherState[Env, None])
+def venv_setup_result(result: List[Either[str, Venv]]) -> Do:
+    def split(z: Tuple[List[str], List[Venv]], a: Either[str, Venv]) -> Tuple[List[str], List[Venv]]:
+        err, vs = z
+        return a.cata((lambda e: (err.cat(e), vs)), (lambda v: (err, vs.cat(v))))
+    errors, venvs = result.fold_left((Nil, Nil))(split)
+    yield venvs.map(_.meta).traverse(add_venv, State).to(EitherState)
+    error = errors.map(str).join_comma
+    ret = Left(f'failed to setup venvs: {error}') if errors else Right(None)
+    yield EitherState.lift(ret)
+
+
+@trans.free.unit(trans.st, trans.gather_ios)
+@do(NS[ChromatinResources, GatherIOs])
 def setup_venvs() -> Do:
     '''check whether a venv exists for each plugin in the env.
     for those that don't have one, create venvs in `g:chromatin_venv_dir`.
     '''
-    venv_dir = yield NS.inspect_f(_.venv_dir)
+    venv_dir = yield venv_dir_setting()
     rplugin_facade = RpluginFacade(venv_dir)
-    plugins = yield NS.inspect(_.rplugins)
+    plugins = yield NS.inspect(_.rplugins).zoom(lens.data)
     rplugin_status = plugins / rplugin_facade.check
     ready, absent = rplugin_status.split_type(RpluginReady)
-    yield (ready / _.rplugin).traverse(L(already_installed)(venv_dir, _), State).nvim
+    yield (ready / _.rplugin).traverse(L(already_installed)(venv_dir, _), State).nvim.zoom(lens.data)
     absent_venvs, other = (absent / _.rplugin).split_type(VenvRplugin)
     yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(venv_dir, _)), venv_setup_result, timeout=30))
 
 
 @trans.free.unit(trans.st)
-def post_setup() -> NS[Env, None]:
+def post_setup() -> NS[ChromatinResources, None]:
     return activate_newly_installed()
 
 
@@ -58,10 +76,10 @@ def setup_plugins() -> Do:
 
 
 @trans.free.result(trans.st)
-@do(NS[Env, Boolean])
+@do(NS[ChromatinResources, Boolean])
 def add_plugins(plugins: List[Rplugin]) -> None:
-    yield NS.modify(__.add_plugins(plugins))
-    yield NS.inspect_f(_.autostart)
+    yield NS.modify(__.add_plugins(plugins)).zoom(lens.data)
+    yield setting(_.autostart)
 
 
 @trans.free.do()
@@ -80,10 +98,10 @@ def stage_1() -> Do:
 
 
 @trans.free.cons(trans.st, trans.log)
-@do(NS[Env, LogMessage])
+@do(NS[ChromatinResources, LogMessage])
 def show_plugins() -> Do:
-    venv_dir = yield NS.inspect_f(_.venv_dir)
-    yield NS.inspect(lambda data: Info(resources.show_plugins(venv_dir, data.rplugins)))
+    venv_dir = yield venv_dir_setting()
+    yield NS.inspect(lambda data: Info(resources.show_plugins(venv_dir, data.rplugins))).zoom(lens.data)
 
 
 @trans.free.do()

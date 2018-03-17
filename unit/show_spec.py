@@ -5,10 +5,12 @@ from ribosome.test.integration.run import DispatchHelper
 from ribosome.trans.action import LogMessage, Info
 from ribosome.nvim.io import NS
 from ribosome.trans.send_message import transform_data_state
+from ribosome.dispatch.run import DispatchState
 
 from amino import List, Just, __
 from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
+from amino.lenses.lens import lens
 
 from chromatin.model.rplugin import Rplugin
 from chromatin import config
@@ -39,8 +41,8 @@ class ShowSpec(SpecBase):
         helper0 = DispatchHelper.cons(config.copy(state_ctor=LogBufferEnv.cons), vars=vars)
         data0 = helper0.state.data
         data = data0.copy(rplugins=List(rplugin))
-        def logger(msg: LogMessage) -> NS[LogBufferEnv, None]:
-            return transform_data_state(NS.modify(__.append1.log_buffer(msg)))
+        def logger(msg: LogMessage) -> NS[DispatchState, None]:
+            return NS.modify(__.append1.log_buffer(msg)).zoom(lens.state.data)
         helper = helper0.copy(
             state=helper0.state.copy(data=data, logger=Just(logger)),
         )

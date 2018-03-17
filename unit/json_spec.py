@@ -1,10 +1,8 @@
 from kallikrein import k, Expectation
 from kallikrein.matchers.either import be_right
 
-from amino import Path, Right, _
+from amino import Path, Right, _, List
 from amino.json import dump_json, decode_json
-
-from ribosome.config import Config
 
 from chromatin.model.rplugin import cons_rplugin
 from chromatin.model.venv import Venv, VenvMeta
@@ -24,10 +22,10 @@ class JsonSpec:
         return k(dump_json(venv)).must(be_right)
 
     def env(self) -> Expectation:
-        config = Config.cons('spec')
-        env = Env.cons(config)
+        ready = List('one')
+        env = Env.cons(ready=ready)
         json = dump_json(env)
-        restored = json // decode_json / _.config.name
-        return k(restored).must(be_right(env.config.name))
+        restored = json // decode_json / _.ready
+        return k(restored).must(be_right(ready))
 
 __all__ = ('JsonSpec',)

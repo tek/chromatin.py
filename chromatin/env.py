@@ -1,32 +1,43 @@
 from typing import Any
 
 from ribosome.request.rpc import DefinedHandler
-from ribosome.config import Data, Config, PluginSettings
 from ribosome.nvim import NvimIO
 
 from amino import List, _, Either, Path, Boolean, Map, __, Maybe, Nil, Nothing, L, do, Do
 from amino.dat import Dat
 
-from chromatin.logging import Logging
 from chromatin.model.venv import Venv, cons_venv_under, VenvMeta
-from chromatin.settings import CrmSettings
+from chromatin.settings import ChromatinSettings
 from chromatin.model.rplugin import Rplugin, ActiveRplugin, VenvRplugin, cons_rplugin, ActiveRpluginMeta
 from chromatin.rplugin import venv_package_installed
 
 
-def filter_venvs_by_name(venvs: List[Venv], names: List[str]) -> List[Venv]:
-    return venvs if names.empty else venvs.filter(lambda v: v.name in names)
-
-
-class Env(Dat['Env'], Logging, Data):
+class Env(Dat['Env']):
 
     @staticmethod
-    def cons(config: Config[PluginSettings, 'Env']) -> 'Env':
-        return Env(config, Nil, Nothing, Nothing, Map(), Nil, Nil, Nil, Map())
+    def cons(
+            rplugins: List[Rplugin]=Nil,
+            chromatin_plugin: Rplugin=None,
+            chromatin_venv: VenvMeta=None,
+            venvs: Map[str, VenvMeta]=Map(),
+            ready: List[str]=Nil,
+            active: List[ActiveRpluginMeta]=Nil,
+            uninitialized: List[ActiveRpluginMeta]=Nil,
+            handlers: Map[str, List[DefinedHandler]]=Map(),
+    ) -> 'Env':
+        return Env(
+            rplugins,
+            Maybe.optional(chromatin_plugin),
+            Maybe.optional(chromatin_venv),
+            venvs,
+            ready,
+            active,
+            uninitialized,
+            handlers,
+        )
 
     def __init__(
             self,
-            config: Config,
             rplugins: List[Rplugin],
             chromatin_plugin: Maybe[Rplugin],
             chromatin_venv: Maybe[VenvMeta],
@@ -36,7 +47,6 @@ class Env(Dat['Env'], Logging, Data):
             uninitialized: List[ActiveRpluginMeta],
             handlers: Map[str, List[DefinedHandler]],
     ) -> None:
-        self.config = config
         self.rplugins = rplugins
         self.chromatin_plugin = chromatin_plugin
         self.chromatin_venv = chromatin_venv
@@ -45,10 +55,6 @@ class Env(Dat['Env'], Logging, Data):
         self.active = active
         self.uninitialized = uninitialized
         self.handlers = handlers
-
-    @property
-    def settings(self) -> CrmSettings:
-        return self.config.settings
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
         return self.append1.rplugins(cons_rplugin(name, spec))
@@ -79,29 +85,10 @@ class Env(Dat['Env'], Logging, Data):
     def _str_extra(self) -> List[Any]:
         return List(self.rplugins, self.venvs)
 
-    @property
-    def rplugins_setting(self) -> NvimIO[List[Map[str, str]]]:
-        return self.settings.rplugins.value_or_default
-
-    @property
-    def venv_dir(self) -> NvimIO[Path]:
-        return self.settings.venv_dir.value_or_default
-
-    def venv_from_rplugin(self, rplugin: VenvRplugin) -> NvimIO[Venv]:
-        return self.venv_dir / L(cons_venv_under)(_, rplugin)
-
     @do(NvimIO[Venv])
     def venv_from_meta(self, meta: VenvMeta) -> Do:
         rplugin = yield NvimIO.from_either(self.rplugin_by_name(meta.name))
         yield self.venv_dir / L(cons_venv_under)(_, rplugin)
-
-    @property
-    def autostart(self) -> NvimIO[Boolean]:
-        return self.settings.autostart.value_or_default
-
-    @property
-    def handle_crm(self) -> NvimIO[Boolean]:
-        return self.settings.handle_crm.value_or_default
 
     @property
     def autoreboot(self) -> NvimIO[Boolean]:
@@ -172,11 +159,6 @@ class Env(Dat['Env'], Logging, Data):
     @property
     def installed_with_crm(self) -> List[VenvMeta]:
         return self.ready.flat_map(self.venvs.lift).cons_m(self.chromatin_venv)
-
-    def updateable(self, rplugins: List[str]) -> NvimIO[List[Venv]]:
-        all = self.installed_with_crm
-        selected = all if rplugins.empty else filter_venvs_by_name(self.installed_with_crm, rplugins)
-        return selected.traverse(self.venv_from_meta, NvimIO)
 
 
 __all__ = ('Env',)
