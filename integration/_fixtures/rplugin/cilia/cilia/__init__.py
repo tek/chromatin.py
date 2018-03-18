@@ -1,7 +1,7 @@
 from amino import List, __
 from amino.boolean import true
 
-from ribosome.config import Config
+from ribosome.config.config import Config
 from ribosome.request.handler.handler import RequestHandler
 from ribosome.request.handler.prefix import Full
 from ribosome.trans.api import trans

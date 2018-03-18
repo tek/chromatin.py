@@ -8,7 +8,7 @@ from ribosome.nvim.io import NS
 from ribosome.plugin_state import PluginState
 from ribosome.dispatch.data import DIO, GatherIOsDIO, GatherSubprocsDIO
 from ribosome.dispatch.execute import execute_io
-from ribosome.trans.action import TransResult, TransAction
+from ribosome.trans.action import TransAction
 from ribosome.process import SubprocessResult
 
 from amino import Just, Map, List, Nil, Right, Path
@@ -17,7 +17,7 @@ from amino.test import temp_dir, fixture_path
 
 from chromatin import config
 from chromatin.model.venv import Venv, VenvMeta
-from chromatin.model.rplugin import cons_rplugin, ActiveRplugin, ActiveRpluginMeta
+from chromatin.model.rplugin import cons_rplugin, ActiveRpluginMeta
 
 name = 'flagellum'
 
@@ -52,7 +52,7 @@ class AddSpec(SpecBase):
         )
         def responses(req: str) -> Any:
             return responses_strict.lift(req).o(Just(0))
-        def x_io(dio: DIO) -> NS[PluginState, TransAction]:
+        def x_io(dio: DIO) -> NS[PluginState, Any]:
             if isinstance(dio, GatherIOsDIO):
                 return NS.pure(List(Right(venv)))
             elif isinstance(dio, GatherSubprocsDIO):

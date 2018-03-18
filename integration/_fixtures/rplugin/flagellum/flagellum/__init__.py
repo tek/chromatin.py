@@ -1,7 +1,7 @@
 from amino import List, __, do, Do
 from amino.boolean import true
 
-from ribosome.config import Config
+from ribosome.config.config import Config
 from ribosome.request.handler.handler import RequestHandler
 from ribosome.request.handler.prefix import Full, Plain
 from ribosome.trans.api import trans
@@ -58,8 +58,9 @@ def stage_4() -> None:
 
 
 @trans.free.unit(trans.nio)
-def quit() -> NvimIO[None]:
-    return NvimIO.delay(__.vars.set_p('quit', 1))
+@do(NvimIO[None])
+def quit() -> Do:
+    yield NvimIO.delay(__.vars.set_p('quit', 1))
 
 
 config = Config.cons(
@@ -69,7 +70,7 @@ config = Config.cons(
         RequestHandler.trans_cmd(stage_1)(prefix=Full(), sync=true),
         RequestHandler.trans_cmd(stage_2)(prefix=Full(), sync=true),
         RequestHandler.trans_cmd(stage_4)(prefix=Full(), sync=true),
-        RequestHandler.trans_cmd(quit)(prefix=Full()),
+        RequestHandler.trans_cmd(quit)(prefix=Full(), sync=true),
         RequestHandler.trans_cmd(test)(),
         RequestHandler.trans_cmd(arg_test)(),
         RequestHandler.trans_cmd(conf_test)(),

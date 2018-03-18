@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from amino import do, List, _, Lists, __, Maybe, Just, L, Path
+from amino import do, List, _, Lists, Maybe, Just, L, Path
 from amino.do import Do
 from amino.boolean import false, true
 from amino.io import IOException
@@ -52,8 +52,7 @@ def install_missing() -> Do:
 def activate(*plugins: str) -> Do:
     already_installed = yield activate_by_names(Lists.wrap(plugins))
     names = already_installed / _.name
-    msg = (~already_installed.empty).m(lambda: Info(resources.already_active(names)))
-    return msg
+    return (~already_installed.empty).m(lambda: Info(resources.already_active(names)))
 
 
 @trans.free.unit(trans.st)
@@ -120,7 +119,7 @@ def update_plugins(*ps: str) -> Do:
 
 
 @trans.free.unit(trans.st)
-def reboot(*plugins: str) -> NS[Env, None]:
+def reboot(*plugins: str) -> NS[ChromatinResources, None]:
     return reboot_plugins(Lists.wrap(plugins)).replace(None)
 
 

@@ -7,6 +7,16 @@ def echo(nvim: 'neovim.api.Nvim', msg: str) -> None:
     nvim.command(f'echo "{safe}"')
 
 
+def tmpfile_error(msg: str) -> None:
+    try:
+        import tempfile
+        from pathlib import Path
+        (fh, file) = tempfile.mkstemp(prefix='chromatin-bootstrap')
+        Path(file).write_text(msg)
+    except Exception as e:
+        pass
+
+
 def run() -> int:
     try:
         from amino.logging import amino_root_logger, amino_root_file_logging

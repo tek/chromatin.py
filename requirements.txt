@@ -1,2 +1,2 @@
-ribosome==13.0.0a14
-kallikrein~=0.22.0a3
+ribosome==13.0.0a22
+kallikrein~=0.22.0a5

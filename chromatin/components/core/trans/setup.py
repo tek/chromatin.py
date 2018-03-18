@@ -1,15 +1,14 @@
 from typing import Tuple
 
-from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left
+from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left, IO
 from amino.do import Do
 from amino.state import State, EitherState
 from amino.lenses.lens import lens
-from amino.boolean import true
-
 from ribosome.nvim.io import NS
 from ribosome.trans.api import trans
 from ribosome.trans.action import TransM, Info, LogMessage
 from ribosome.trans.effects import GatherIOs
+from ribosome import ribo_log
 
 from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, already_installed,
                                              add_venv, venv_dir_setting)
@@ -18,7 +17,7 @@ from chromatin.model.rplugin import Rplugin, cons_rplugin
 from chromatin.components.core.trans.install import install_missing, install_result
 from chromatin.model.rplugin import RpluginReady, VenvRplugin
 from chromatin.model.venv import bootstrap, Venv
-from chromatin.rplugin import RpluginFacade
+from chromatin.rplugin import rplugin_installed
 from chromatin.util import resources
 from chromatin.settings import setting, ensure_setting
 from chromatin.config.resources import ChromatinResources
@@ -34,11 +33,12 @@ def init() -> Do:
 
 @trans.free.unit(trans.st)
 @do(EitherState[Env, None])
-def venv_setup_result(result: List[Either[str, Venv]]) -> Do:
+def bootstrap_result(result: List[Either[str, Venv]]) -> Do:
     def split(z: Tuple[List[str], List[Venv]], a: Either[str, Venv]) -> Tuple[List[str], List[Venv]]:
         err, vs = z
         return a.cata((lambda e: (err.cat(e), vs)), (lambda v: (err, vs.cat(v))))
     errors, venvs = result.fold_left((Nil, Nil))(split)
+    ribo_log.debug(f'bootstrapped venvs: {venvs}')
     yield venvs.map(_.meta).traverse(add_venv, State).to(EitherState)
     error = errors.map(str).join_comma
     ret = Left(f'failed to setup venvs: {error}') if errors else Right(None)
@@ -52,13 +52,12 @@ def setup_venvs() -> Do:
     for those that don't have one, create venvs in `g:chromatin_venv_dir`.
     '''
     venv_dir = yield venv_dir_setting()
-    rplugin_facade = RpluginFacade(venv_dir)
     plugins = yield NS.inspect(_.rplugins).zoom(lens.data)
-    rplugin_status = plugins / rplugin_facade.check
+    rplugin_status = yield NS.from_io(plugins.traverse(rplugin_installed(venv_dir), IO))
     ready, absent = rplugin_status.split_type(RpluginReady)
-    yield (ready / _.rplugin).traverse(L(already_installed)(venv_dir, _), State).nvim.zoom(lens.data)
+    yield (ready / _.rplugin).traverse(L(already_installed)(venv_dir, _), NS).zoom(lens.data)
     absent_venvs, other = (absent / _.rplugin).split_type(VenvRplugin)
-    yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(venv_dir, _)), venv_setup_result, timeout=30))
+    yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(venv_dir, _)), bootstrap_result, timeout=30))
 
 
 @trans.free.unit(trans.st)

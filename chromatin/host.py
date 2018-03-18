@@ -3,6 +3,7 @@ from typing import Tuple
 
 from ribosome.nvim import NvimIO
 from ribosome.logging import ribo_log
+from ribosome.nvim.api import nvim_call_function
 
 from amino import Path, do, __, List
 from amino.do import Do
@@ -42,7 +43,8 @@ def start_host(python_exe: Path, bin_path: Path, plugin_path: Path, debug: bool=
     yield NvimIO.pure((channel, pid))
 
 
-def stop_host(channel: int) -> NvimIO[None]:
-    return NvimIO.delay(lambda v: v.vim.async_call(lambda vv: vv.call('jobstop', channel)))
+@do(NvimIO[None])
+def stop_host(channel: int) -> Do:
+    yield nvim_call_function('jobstop', channel)
 
 __all__ = ('start_host', 'stop_host')

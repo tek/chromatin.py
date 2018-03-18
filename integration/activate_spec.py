@@ -110,7 +110,7 @@ class ActivateFlagSpec(ActivateSpec):
         self.cmd_sync('CrmActivate')
         return self._log_line(-1, be_just(end_with(resources.already_active(List(self.name)))))
 
-    # FIXME channel is not being shut down
+    # FIXME channel is not being shut down ???
     @ensure_venv
     def deactivate(self) -> Expectation:
         self.seen_trans('setup_plugins')
@@ -155,5 +155,6 @@ class ActivateMiscSpec(ActivateSpec):
     def proteome(self) -> Expectation:
         self._init()
         return later(self.command_exists('ProAdd'))
+
 
 __all__ = ('ActivateFlagSpec', 'ActivateTwoSpec')

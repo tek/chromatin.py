@@ -1,7 +1,7 @@
 import sys
 from typing import Tuple
 
-from amino import do, __, _, Just, Maybe, List, Either, Nil, Boolean, Right, Left, Path, Lists, L
+from amino import do, __, _, Just, Maybe, List, Either, Nil, Boolean, Right, Left, Path, Lists, L, IO, Nothing
 from amino.do import Do
 from amino.state import State, EitherState
 from amino.io import IOException
@@ -126,7 +126,7 @@ def deactivate_rplugin(active_rplugin: ActiveRplugin) -> Do:
         return NvimIO.cmd(spec.undef_cmdline, verbose=True)
     @do(NvimIO[None])
     def run(handlers: List[RpcHandlerSpec]) -> Do:
-        yield NvimIO.cmd(f'{camelcase(rplugin.name)}Quit')
+        yield NvimIO.cmd_sync(f'{camelcase(rplugin.name)}Quit')
         yield stop_host(meta.channel)
         yield handlers.traverse(undef, NvimIO)
         ribo_log.debug(f'deactivated {active_rplugin}')
@@ -154,7 +154,7 @@ def deactivate_by_names(plugins: List[str]) -> Do:
     )
 
 
-@do(NS[Env, List[Rplugin]])
+@do(NS[ChromatinResources, List[Rplugin]])
 def reboot_plugins(plugins: List[str]) -> Do:
     yield deactivate_by_names(plugins).zoom(lens.data)
     yield activate_by_names(plugins)
@@ -195,15 +195,17 @@ def add_installed(rplugin: Rplugin) -> Do:
     yield State.modify(__.add_installed(rplugin.name))
 
 
-@do(State[Env, None])
+@do(NS[Env, None])
 def already_installed(venv_dir: Path, rplugin: Rplugin) -> Do:
-    yield add_installed(rplugin)
+    yield add_installed(rplugin).nvim
     if isinstance(rplugin, VenvRplugin):
-        yield add_venv(cons_venv(venv_dir, rplugin).meta)
+        venv = yield NS.from_io(cons_venv(venv_dir, rplugin))
+        yield add_venv(venv.meta).nvim
 
 
 @trans.free.result(trans.st)
-def install_plugins_result(results: List[Either[IOException, SubprocessResult[Venv]]]) -> NS[Env, Maybe[Message]]:
+def install_plugins_result(results: List[Either[IOException, SubprocessResult[Venv]]]
+                           ) -> NS[Env, Tuple[List[Venv], List[str]]]:
     venvs = results.flat_map(__.cata(ReplaceVal(Nil), List))
     errors = results.flat_map(__.cata(List, ReplaceVal(Nil)))
     ribo_log.debug(f'installed plugins: {venvs}')
@@ -223,6 +225,8 @@ def install_venv(venv: Venv) -> Do:
 
 @do(Either[str, GatherSubprocs[VenvMeta, Tuple[List[Venv], List[IOException]]]])
 def install_plugins(venvs: List[Venv], update: Boolean) -> Do:
+    action = 'updating' if update else 'installing'
+    ribo_log.debug(f'{action} venvs: {venvs}')
     procs = yield venvs.traverse(install_venv, Either)
     yield Right(GatherSubprocs(procs, install_plugins_result, timeout=60))
 
@@ -273,7 +277,8 @@ def missing_plugins() -> Do:
     venv_dir = yield venv_dir_setting()
     venv_metas = yield NS.inspect(_.venvs.v).zoom(lens.data)
     venvs = yield venv_metas.traverse(L(venv_from_meta)(venv_dir, _), NS).zoom(lens.data)
-    return venvs.filter_not(venv_package_installed)
+    package_status = yield NS.from_io(venvs.traverse(venv_package_installed, IO))
+    return venvs.zip(package_status).collect(lambda a: Nothing if a[1] else Just(a[0]))
 
 
 __all__ = ('add_crm_venv', 'read_conf', 'install_plugins', 'add_installed', 'missing_plugins')

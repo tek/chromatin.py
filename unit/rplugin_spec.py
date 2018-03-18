@@ -31,7 +31,7 @@ class RpluginSpec:
         plugin = DirRplugin.cons(name, str(dir))
         return (
             (kf(cons_rplugin, name, spec) == plugin) &
-            (kio(self.rplugin_installed(plugin)) == RpluginReady(plugin))
+            (kio(self.rplugin_installed, plugin) == RpluginReady(plugin))
         )
 
     def site_rplugin(self) -> Expectation:
@@ -43,9 +43,9 @@ class RpluginSpec:
         plugin_bad = SiteRplugin.cons(pkg_bad, pkg_bad)
         return (
             (kf(cons_rplugin, pkg, spec) == plugin) &
-            (kio(self.rplugin_installed(plugin)) == RpluginReady(plugin)) &
+            (kio(self.rplugin_installed, plugin) == RpluginReady(plugin)) &
             (kf(cons_rplugin, pkg_bad, spec_bad) == plugin_bad) &
-            (kio(self.rplugin_installed(plugin_bad)) == RpluginAbsent(plugin_bad))
+            (kio(self.rplugin_installed, plugin_bad) == RpluginAbsent(plugin_bad))
         )
 
     def venv_rplugin(self) -> Expectation:
@@ -53,14 +53,14 @@ class RpluginSpec:
         plugin = VenvRplugin.cons(name, name)
         return (
             (kf(cons_rplugin, name, spec) == plugin) &
-            (kio(self.rplugin_installed(plugin)) == RpluginAbsent(plugin))
+            (kio(self.rplugin_installed, plugin) == RpluginAbsent(plugin))
         )
 
     def default(self) -> Expectation:
         plugin = VenvRplugin.cons(name, name)
         return (
             (kf(cons_rplugin, name, name) == plugin) &
-            (kio(self.rplugin_installed(plugin)) == RpluginAbsent(plugin))
+            (kio(self.rplugin_installed, plugin) == RpluginAbsent(plugin))
         )
 
 

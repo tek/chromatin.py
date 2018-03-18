@@ -44,6 +44,7 @@ class TwoExplicitSpec(RpluginSpecBase):
         self.vim.vars.set_p('venv_dir', str(self.dir))
 
     def read_conf(self) -> Expectation:
+        self.vim.cmd_once_defined('ChromatinStage1')
         return k(self.state.rplugins).must(have_length(2))
 
     def bootstrap(self) -> Expectation:
@@ -123,7 +124,7 @@ class BootstrapSpec(RpluginSpecBase):
     def bootstrap(self) -> Expectation:
         self.command_exists_not('Cram')
         self.vim.runtime('chromatin.nvim/plugin/bootstrap')
-        self.cmd('BootstrapChromatin')
+        self.cmd_sync('BootstrapChromatin')
         self.command_exists('ChromatinStage1', timeout=10)
         self.cmd_sync('ChromatinStage1')
         self.cmd_sync('CrmSetupPlugins')
@@ -150,5 +151,6 @@ class RebootSpec(RpluginSpecBase):
         self.seen_trans('updated_plugins')
         self.cmd_sync('CrmReboot')
         return later(kf(self.vim.call, 'FlagRebootTest').must(be_right(17)))
+
 
 __all__ = ('TwoExplicitSpec', 'AutostartAfterAddSpec', 'AutostartAtBootSpec', 'BootstrapSpec')

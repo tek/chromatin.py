@@ -5,6 +5,7 @@ from amino.test import temp_dir
 from kallikrein import Expectation, kf
 from kallikrein.matchers.typed import have_type
 from kallikrein.matchers.either import be_right
+from kallikrein.expectable import kio
 from amino.test.path import fixture_path
 from amino import Maybe, Path, Nothing
 
@@ -32,7 +33,7 @@ class RpluginSpecBase(DefaultSpec):
         return kf(self.cmd_sync, cmd).must(be_right)
 
     def venv_existent(self, base_dir: Path, rplugin: Rplugin, timeout: float=None) -> Expectation:
-        return later(kf(check_venv, base_dir, rplugin).must(have_type(VenvExistent)), timeout=timeout, intval=.5)
+        return later(kio(check_venv, base_dir, rplugin).must(have_type(VenvExistent)), timeout=timeout, intval=.5)
 
     def package_installed(self, base_dir: Path, rplugin: Rplugin) -> Expectation:
         return later(
@@ -44,7 +45,7 @@ class RpluginSpecBase(DefaultSpec):
 
     def plugin_venv(self, base_dir: Path, rplugin: Rplugin) -> Venv:
         later(self.venv_existent(base_dir, rplugin))
-        return cast(VenvExistent, check_venv(base_dir, rplugin)).venv
+        return cast(VenvExistent, check_venv(base_dir, rplugin).attempt.value).venv
 
     def setup_venvs(self, venv_dir: Maybe[Path] = Nothing) -> Path:
         rtp = fixture_path('rplugin', 'config', 'rtp')
