@@ -44,6 +44,7 @@ def default_venv_dir() -> Do:
     yield Right(venv_dir)
 
 
+# FIXME validate `rplugins` correctly; if it is e.g. a list[str], this will result in an exception in `read_conf`
 class ChromatinSettings(Settings):
 
     def __init__(self) -> None:

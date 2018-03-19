@@ -3,12 +3,11 @@ from typing import Any
 from ribosome.request.rpc import DefinedHandler
 from ribosome.nvim import NvimIO
 
-from amino import List, _, Either, Path, Boolean, Map, __, Maybe, Nil, Nothing, L, do, Do
+from amino import List, _, Either, Boolean, Map, __, Maybe, Nil, L, do, Do
 from amino.dat import Dat
 
 from chromatin.model.venv import Venv, cons_venv_under, VenvMeta
-from chromatin.settings import ChromatinSettings
-from chromatin.model.rplugin import Rplugin, ActiveRplugin, VenvRplugin, cons_rplugin, ActiveRpluginMeta
+from chromatin.model.rplugin import Rplugin, ActiveRplugin, cons_rplugin, ActiveRpluginMeta
 from chromatin.rplugin import venv_package_installed
 
 
@@ -17,7 +16,7 @@ class Env(Dat['Env']):
     @staticmethod
     def cons(
             rplugins: List[Rplugin]=Nil,
-            chromatin_plugin: Rplugin=None,
+            chromatin_rplugin: Rplugin=None,
             chromatin_venv: VenvMeta=None,
             venvs: Map[str, VenvMeta]=Map(),
             ready: List[str]=Nil,
@@ -27,7 +26,7 @@ class Env(Dat['Env']):
     ) -> 'Env':
         return Env(
             rplugins,
-            Maybe.optional(chromatin_plugin),
+            Maybe.optional(chromatin_rplugin),
             Maybe.optional(chromatin_venv),
             venvs,
             ready,
@@ -39,7 +38,7 @@ class Env(Dat['Env']):
     def __init__(
             self,
             rplugins: List[Rplugin],
-            chromatin_plugin: Maybe[Rplugin],
+            chromatin_rplugin: Maybe[Rplugin],
             chromatin_venv: Maybe[VenvMeta],
             venvs: Map[str, VenvMeta],
             ready: List[str],
@@ -48,7 +47,7 @@ class Env(Dat['Env']):
             handlers: Map[str, List[DefinedHandler]],
     ) -> None:
         self.rplugins = rplugins
-        self.chromatin_plugin = chromatin_plugin
+        self.chromatin_rplugin = chromatin_rplugin
         self.chromatin_venv = chromatin_venv
         self.venvs = venvs
         self.ready = ready
@@ -70,7 +69,7 @@ class Env(Dat['Env']):
 
     @property
     def rplugins_with_crm(self) -> List[Rplugin]:
-        return self.rplugins.cons_m(self.chromatin_plugin)
+        return self.rplugins.cons_m(self.chromatin_rplugin)
 
     def rplugin_by_name(self, name: str) -> Either[str, Rplugin]:
         return self.rplugins_with_crm.find(lambda a: a.name == name).to_either(f'no rplugin with name `{name}`')

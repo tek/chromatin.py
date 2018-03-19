@@ -2,6 +2,9 @@ from typing import Any
 
 from kallikrein import k, Expectation
 from kallikrein.matchers import contain
+from kallikrein.matchers.either import be_right
+from kallikrein.matchers.typed import have_type
+from kallikrein.matchers.comparison import eq
 
 from ribosome.test.integration.run import DispatchHelper
 from ribosome.nvim.io import NS
@@ -10,13 +13,13 @@ from ribosome.dispatch.data import DIO, GatherIOsDIO, GatherSubprocsDIO
 from ribosome.dispatch.execute import execute_io
 from ribosome.process import SubprocessResult
 
-from amino import Just, Map, List, Nil, Right, Path
+from amino import Just, Map, List, Nil, Right, Path, _
 from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
 
 from chromatin import config
 from chromatin.model.venv import Venv, VenvMeta
-from chromatin.model.rplugin import cons_rplugin, ActiveRpluginMeta
+from chromatin.model.rplugin import cons_rplugin, ActiveRpluginMeta, VenvRplugin
 
 name = 'flagellum'
 
@@ -24,6 +27,7 @@ name = 'flagellum'
 class Stage1Spec(SpecBase):
     '''
     create one virtualenv $one
+    dogfood chromatin $crm_rplugin
     '''
 
     @property
@@ -65,6 +69,17 @@ class Stage1Spec(SpecBase):
         helper = DispatchHelper.cons(config, vars=vars, responses=responses, io_executor=x_io)
         r = helper.loop('command:stage_1').unsafe(helper.vim)
         return k(r.data.venvs.k).must(contain(name)) & k(r.data.active).must(contain(active_rplugin))
+
+    def crm_rplugin(self) -> Expectation:
+        helper = DispatchHelper.cons(config)
+        r = helper.loop('command:stage_1').unsafe(helper.vim)
+        rplugin = r.data.chromatin_rplugin.to_either('no chromatin rplugin')
+        venv = r.data.chromatin_venv.to_either('no chromatin venv')
+        return (
+            k(rplugin).must(be_right(VenvRplugin('chromatin', 'chromatin'))) &
+            k(venv // _.meta.python_executable).must(be_right(have_type(Path))) &
+            k(venv / _.meta.rplugin).must(eq(rplugin / _.name))
+        )
 
 
 __all__ = ('Stage1Spec',)

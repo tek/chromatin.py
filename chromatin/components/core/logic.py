@@ -1,19 +1,17 @@
 import sys
 from typing import Tuple
 
-from amino import do, __, _, Just, Maybe, List, Either, Nil, Boolean, Right, Left, Path, Lists, L, IO, Nothing
+from amino import do, __, _, Just, List, Either, Nil, Boolean, Right, Path, Lists, L, IO, Nothing
 from amino.do import Do
-from amino.state import State, EitherState
+from amino.state import State
 from amino.io import IOException
 from amino.func import ReplaceVal
 from amino.util.string import camelcaseify, camelcase
-from amino.dispatch import dispatch_alg, PatMat
+from amino.dispatch import PatMat
 from amino.json import decode_json
 from amino.lenses.lens import lens
 
 from ribosome.nvim.io import NS
-from ribosome.trans.message_base import Message
-from ribosome.trans.send_message import transform_data_state
 from ribosome.process import SubprocessResult, Subprocess
 from ribosome.logging import ribo_log
 from ribosome.request.rpc import DefinedHandler, RpcHandlerSpec
@@ -58,7 +56,7 @@ def activated(active_rplugin: ActiveRplugin) -> Do:
 
 @do(NS[ChromatinResources, ActiveRplugin])
 def start_rplugin_host(rplugin: Rplugin, python_exe: Path, bin_path: Path, plugin_path: Path) -> Do:
-    debug = setting(_.debug_pythonpath)
+    debug = yield setting(_.debug_pythonpath)
     channel, pid = yield NS.lift(start_host(python_exe, bin_path, plugin_path, debug))
     return ActiveRplugin(rplugin, ActiveRpluginMeta(rplugin.name, channel, pid))
 
@@ -239,10 +237,12 @@ def venv_dir_setting() -> NS[ChromatinResources, Path]:
 def add_crm_venv() -> Do:
     handle = yield setting(_.handle_crm)
     if handle:
+        ribo_log.debug('adding chromatin venv')
         plugin = Rplugin.simple('chromatin')
-        yield NS.modify(__.set.chromatin_plugin(Just(plugin)))
+        yield NS.modify(__.set.chromatin_rplugin(Just(plugin))).zoom(lens.data)
         venv_dir = yield venv_dir_setting()
-        yield NS.modify(__.set.chromatin_venv(Just(cons_venv(plugin, venv_dir))))
+        venv = yield NS.from_io(cons_venv(venv_dir, plugin))
+        yield NS.modify(__.set.chromatin_venv(Just(venv))).zoom(lens.data)
 
 
 @do(NS[Env, List[Rplugin]])
@@ -255,7 +255,7 @@ def read_conf() -> Do:
 @do(NS[Env, List[Rplugin]])
 def rplugins_with_crm() -> Do:
     rplugins = yield NS.inspect(_.rplugins)
-    crm = yield NS.inspect(_.chromatin_plugin)
+    crm = yield NS.inspect(_.chromatin_rplugin)
     return rplugins.cons_m(crm)
 
 

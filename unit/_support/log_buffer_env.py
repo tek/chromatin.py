@@ -19,7 +19,7 @@ class LogBufferEnv(Env):
     def __init__(
             self,
             rplugins: List[Rplugin],
-            chromatin_plugin: Maybe[Rplugin],
+            chromatin_rplugin: Maybe[Rplugin],
             chromatin_venv: Maybe[VenvMeta],
             venvs: Map[str, VenvMeta],
             ready: List[str],
@@ -29,7 +29,7 @@ class LogBufferEnv(Env):
             log_buffer: List[LogMessage]=Nil,
     ) -> None:
         self.rplugins = rplugins
-        self.chromatin_plugin = chromatin_plugin
+        self.chromatin_rplugin = chromatin_rplugin
         self.chromatin_venv = chromatin_venv
         self.venvs = venvs
         self.ready = ready
