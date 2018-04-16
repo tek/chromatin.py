@@ -1,6 +1,6 @@
 import abc
 import shutil
-import venv
+import venv  # type: ignore
 import sys
 import pkg_resources
 from types import SimpleNamespace

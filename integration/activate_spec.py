@@ -7,11 +7,15 @@ from kallikrein.matchers.maybe import be_just
 from kallikrein.matchers.end_with import end_with
 from kallikrein.matchers.comparison import not_equal, greater
 from kallikrein.matchers.either import be_right
+from kallikrein.matchers import equal
 
 from amino.test.path import base_dir
-from amino import Path, Just, _, L, List
+from amino import Path, Just, _, L, List, do, Do
 
 from ribosome.test.integration.klk import later
+from ribosome.nvim.api.command import nvim_command, doautocmd
+from ribosome.nvim.io.compute import NvimIO
+from ribosome.nvim.api.function import nvim_call_tpe
 
 from chromatin.util import resources
 from chromatin.model.rplugin import Rplugin
@@ -44,20 +48,27 @@ class ActivateSpec(RpluginSpecBase):
 AS = TypeVar('AS', bound=ActivateSpec)
 
 
-def ensure_venv(f: Callable[[AS], Expectation]) -> Callable[[AS], Expectation]:
+@do(NvimIO[None])
+def setup_venvs(self: AS) -> Do:
+    self.command_exists('Cram')
+    venvs = yield self.setup_venv_dir(Just(self.venvs_path))
+    create = self.names.exists(lambda a: not self.venv_path(a).exists())
+    if create:
+        self.remove()
+    def setup(venv: str) -> NvimIO[Rplugin]:
+        return self.setup_one(venv, Just(self.venvs_path))
+    plugins = yield self.names.traverse(setup, NvimIO)
+    yield nvim_command('CrmSetupPlugins')
+    self._wait(1)
+    for plugin in plugins:
+        self.venv_existent(venvs, plugin, 30)
+        self.package_installed(venvs, plugin)
+    self.check_exists()
+
+
+def cached_venvs(f: Callable[[AS], Expectation]) -> Callable[[AS], Expectation]:
     def wrap(self: AS) -> Expectation:
-        venvs = self.setup_venvs(Just(self.venvs_path))
-        create = self.names.exists(lambda a: not self.venv_path(a).exists())
-        if create:
-            self.remove()
-        def setup(venv: str) -> Rplugin:
-            return self.setup_one(venv, Just(self.venvs_path))
-        plugins = self.names / setup
-        self.cmd_sync('CrmSetupPlugins')
-        for plugin in plugins:
-            self.venv_existent(venvs, plugin, 30)
-            self.package_installed(venvs, plugin)
-        self.check_exists()
+        setup_venvs(self).unsafe(self.vim)
         return f(self)
     return wrap
 
@@ -83,48 +94,47 @@ class ActivateFlagSpec(ActivateSpec):
     def check_exists(self) -> Expectation:
         return later(self.plug_exists('Flag'))
 
-    @ensure_venv
+    @cached_venvs
     def cmd_parameter(self) -> Expectation:
-        self.vim.cmd_sync('FlagArgTest 1')
+        nvim_command('FlagArgTest', 1).unsafe(self.vim)
         return self._log_line(-1, be_just(end_with('success 1')))
 
-    @ensure_venv
+    @cached_venvs
     def autocmd(self) -> Expectation:
-        self.vim.doautocmd('VimEnter')
+        doautocmd('VimEnter').unsafe(self.vim)
         return self._log_line(-1, be_just(end_with('autocmd works')))
 
-    @ensure_venv
+    @cached_venvs
     def config(self) -> Expectation:
-        later(self.command_exists('FlagConfTest'))
         self.var_becomes('flagellum_value', 'success')
-        self.vim.cmd_sync('FlagConfTest')
+        nvim_command('FlagConfTest').unsafe(self.vim)
         return self._log_line(-1, be_just(end_with('success')))
 
-    @ensure_venv
+    @cached_venvs
     def update(self) -> Expectation:
-        self.cmd_sync('CrmUpdate')
+        nvim_command('CrmUpdate').unsafe(self.vim)
         return self._log_line(-1, be_just(end_with(resources.updated_plugin(self.name))))
 
-    @ensure_venv
+    @cached_venvs
     def twice(self) -> Expectation:
-        self.cmd_sync('CrmActivate')
+        nvim_command('CrmActivate').unsafe(self.vim)
         return self._log_line(-1, be_just(end_with(resources.already_active(List(self.name)))))
 
     # FIXME channel is not being shut down ???
-    @ensure_venv
+    @cached_venvs
     def deactivate(self) -> Expectation:
-        self.seen_trans('setup_plugins')
+        self.seen_program('setup_plugins')
         plug_channel: Callable[[], int] = lambda: self.state.active.head / _.channel | -1
         later(kf(plug_channel).must(not_equal(-1)))
         channel = plug_channel()
-        pid = L(self.vim.call)('jobpid', channel)
+        pid = lambda: nvim_call_tpe(int, 'jobpid', channel).unsafe(self.vim)
         later(kf(pid).must(be_right(greater(0))))
-        self.cmd_sync('CrmDeactivate')
-        self.seen_trans('deactivate')
+        nvim_command('CrmDeactivate').unsafe(self.vim)
+        self.seen_program('deactivate')
         return (
             self.command_exists_not('FlagTest') &
             self.var_becomes('flagellum_quit', 1) &
-            later(kf(pid).must(be_right(0)))
+            later(kf(pid).must(equal(0)))
         )
 
 
@@ -139,10 +149,10 @@ class ActivateTwoSpec(ActivateSpec):
     def check_exists(self) -> Expectation:
         return later(self.plug_exists('Flag') & self.plug_exists('Cil'))
 
-    @ensure_venv
+    @cached_venvs
     def stages(self) -> Expectation:
         self.names % (lambda a: self._log_contains(end_with(f'{a} initialized')))
-        return self.var_is('flag', 2) & self.var_is('cil', 1)
+        return self.var_becomes('flag', 2) & self.var_is('cil', 1)
 
 
 class ActivateMiscSpec(ActivateSpec):
@@ -151,7 +161,7 @@ class ActivateMiscSpec(ActivateSpec):
     def name(self) -> str:
         return 'proteome'
 
-    @ensure_venv
+    @cached_venvs
     def proteome(self) -> Expectation:
         self._init()
         return later(self.command_exists('ProAdd'))

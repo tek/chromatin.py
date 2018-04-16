@@ -1,16 +1,22 @@
-from ribosome.test.integration.klk import AutoPluginIntegrationKlkSpec
+from ribosome.test.integration.klk import AutoPluginIntegrationKlkSpec, VimIntegrationKlkSpec
 
 
 class DefaultSpec(AutoPluginIntegrationKlkSpec):
 
-    def config_name(self) -> str:
-        return 'config'
+    def plugin_name(self) -> str:
+        return 'chromatin'
+
+    def plugin_short_name(self) -> str:
+        return 'crm'
+
+
+class ExternalSpec(VimIntegrationKlkSpec):
 
     def plugin_name(self) -> str:
         return 'chromatin'
 
-    def plugin_prefix(self) -> str:
+    def plugin_short_name(self) -> str:
         return 'crm'
 
 
-__all__ = ('DefaultSpec',)
+__all__ = ('DefaultSpec', 'ExternalSpec')

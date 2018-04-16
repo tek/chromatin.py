@@ -1,34 +1,35 @@
-from amino import List, __
+from amino import List
 from amino.boolean import true
 
 from ribosome.config.config import Config
 from ribosome.request.handler.handler import RequestHandler
 from ribosome.request.handler.prefix import Full
-from ribosome.trans.api import trans
-from ribosome.nvim import NvimIO
 from ribosome import ribo_log
+from ribosome.compute.api import prog
+from ribosome.nvim.io.state import NS
+from ribosome.nvim.api.variable import variable_set
 
 name = 'cilia'
 
 
-@trans.free.unit(trans.nio)
-def stage_1() -> NvimIO[None]:
-    return NvimIO.delay(__.vars.set('cil', 2))
+@prog
+def stage_1() -> NS[None, None]:
+    return NS.lift(variable_set('cil', 2))
 
 
-@trans.free.unit()
-def test() -> None:
-    ribo_log.info(f'{name} working')
+@prog
+def test() -> NS[None, None]:
+    return NS.simple(ribo_log.info, f'{name} working')
 
 
-@trans.free.unit(trans.nio)
-def stage_2() -> NvimIO[None]:
-    return NvimIO.delay(__.vars.set('flag', 2))
+@prog
+def stage_2() -> NS[None, None]:
+    return NS.lift(variable_set('flag', 2))
 
 
-@trans.free.unit()
-def stage_4() -> None:
-    ribo_log.info(f'{name} initialized')
+@prog
+def stage_4() -> NS[None, None]:
+    return NS.simple(ribo_log.info, f'{name} initialized')
 
 
 config = Config.cons(

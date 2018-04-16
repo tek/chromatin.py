@@ -6,7 +6,7 @@ from amino.json import dump_json, decode_json
 
 from chromatin.model.rplugin import cons_rplugin
 from chromatin.model.venv import Venv, VenvMeta
-from chromatin import Env
+from chromatin.env import Env
 
 
 class JsonSpec:
@@ -27,5 +27,6 @@ class JsonSpec:
         json = dump_json(env)
         restored = json // decode_json / _.ready
         return k(restored).must(be_right(ready))
+
 
 __all__ = ('JsonSpec',)

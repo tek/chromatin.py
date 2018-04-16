@@ -1,8 +1,8 @@
 import pkg_resources
 
 from amino import Either, Boolean, Path, Maybe, L, _, do, IO, Do
-from amino.dispatch import dispatch_alg, PatMat
 from amino.boolean import false
+from amino.case import Case
 
 from chromatin.model.venv import (VenvStatus, VenvExistent, VenvAbsent, cons_venv, VenvPackageStatus,
                                   VenvPackageExistent, VenvPackageAbsent, Venv)
@@ -44,7 +44,7 @@ def venv_package_installed(venv: Venv) -> Do:
     return status.exists
 
 
-class venv_status_check(PatMat, alg=VenvStatus):
+class venv_status_check(Case[VenvExistent, IO[Boolean]], alg=VenvStatus):
 
     def venv_existent(self, status: VenvExistent) -> IO[Boolean]:
         return venv_package_installed(status.venv)
@@ -53,7 +53,7 @@ class venv_status_check(PatMat, alg=VenvStatus):
         return IO.pure(false)
 
 
-class rplugin_installed(PatMat[Rplugin, IO[RpluginStatus]], alg=Rplugin):
+class rplugin_installed(Case[Rplugin, IO[RpluginStatus]], alg=Rplugin):
 
     def __init__(self, base_dir: Path) -> None:
         self.base_dir = base_dir

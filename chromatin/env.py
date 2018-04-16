@@ -1,7 +1,8 @@
 from typing import Any
 
 from ribosome.request.rpc import DefinedHandler
-from ribosome.nvim import NvimIO
+from ribosome.nvim.io.compute import NvimIO
+from ribosome.nvim.io.api import N
 
 from amino import List, _, Either, Boolean, Map, __, Maybe, Nil, L, do, Do
 from amino.dat import Dat
@@ -78,7 +79,7 @@ class Env(Dat['Env']):
     @do(NvimIO[List[Venv]])
     def missing(self) -> Do:
         venvs = yield self.venvs.v.traverse(self.venv_from_meta, NvimIO)
-        yield NvimIO.pure(venvs.filter_not(venv_package_installed))
+        yield N.pure(venvs.filter_not(venv_package_installed))
 
     @property
     def _str_extra(self) -> List[Any]:
@@ -86,7 +87,7 @@ class Env(Dat['Env']):
 
     @do(NvimIO[Venv])
     def venv_from_meta(self, meta: VenvMeta) -> Do:
-        rplugin = yield NvimIO.from_either(self.rplugin_by_name(meta.name))
+        rplugin = yield N.from_either(self.rplugin_by_name(meta.name))
         yield self.venv_dir / L(cons_venv_under)(_, rplugin)
 
     @property

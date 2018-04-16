@@ -6,8 +6,8 @@ from amino.boolean import true, false
 
 from ribosome.config.settings import bool_setting, path_setting, list_setting, Settings
 from ribosome.config.setting import Setting
-from ribosome.nvim.io import NS
-from ribosome.config.config import Resources
+from ribosome.nvim.io.state import NS
+from ribosome.config.resources import Resources
 
 from chromatin.util.resources import xdg_cache_home, create_venv_dir_error
 

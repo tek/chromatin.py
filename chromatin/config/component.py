@@ -1,6 +1,6 @@
 from amino import Dat
 
-from ribosome.dispatch.component import Component, ComponentData
+from ribosome.config.component import Component, ComponentData
 
 from chromatin.env import Env
 

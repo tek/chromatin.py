@@ -7,19 +7,22 @@ from amino.state import State
 from amino.io import IOException
 from amino.func import ReplaceVal
 from amino.util.string import camelcaseify, camelcase
-from amino.dispatch import PatMat
 from amino.json import decode_json
 from amino.lenses.lens import lens
+from amino.case import Case
 
-from ribosome.nvim.io import NS
+from ribosome.nvim.io.state import NS
 from ribosome.process import SubprocessResult, Subprocess
 from ribosome.logging import ribo_log
 from ribosome.request.rpc import DefinedHandler, RpcHandlerSpec
-from ribosome.nvim import NvimIO
-from ribosome.trans.effects import GatherSubprocs
-from ribosome.trans.api import trans
+from ribosome.nvim.io.compute import NvimIO
+from ribosome.compute.api import prog
+from ribosome.compute.output import GatherSubprocesses
+from ribosome.nvim.io.api import N
+from ribosome.nvim.api.command import runtime, nvim_command
+from ribosome.nvim.api.exists import wait_for_command, command_exists
+from ribosome.nvim.api.function import nvim_call_json
 
-from chromatin import Env
 from chromatin.model.venv import Venv, cons_venv, VenvMeta, cons_venv_under
 from chromatin.host import start_host, stop_host
 from chromatin.util import resources
@@ -27,6 +30,7 @@ from chromatin.model.rplugin import Rplugin, ActiveRplugin, DirRplugin, VenvRplu
 from chromatin.settings import setting
 from chromatin.config.resources import ChromatinResources
 from chromatin.rplugin import venv_package_installed
+from chromatin.env import Env
 
 
 @do(NvimIO[List[DefinedHandler]])
@@ -34,13 +38,13 @@ def define_handlers(active_rplugin: ActiveRplugin) -> Do:
     channel = active_rplugin.channel
     cname = camelcaseify(active_rplugin.name)
     rpc_handlers_fun = f'{cname}RpcHandlers'
-    result = yield NvimIO.call_once_defined(rpc_handlers_fun, timeout=3)
+    result = yield N.call_once_defined(rpc_handlers_fun, timeout=3)
     handlers = (
         Lists.wrap(result)
         .flat_map(RpcHandlerSpec.decode)
         .map(lambda spec: DefinedHandler(spec=spec, channel=channel))
     )
-    yield NvimIO.pure(handlers)
+    yield N.pure(handlers)
 
 
 # FIXME handlers cannot be obtained while the plugin is initializing, as the RpcHandlers function will be reported as
@@ -50,7 +54,7 @@ def define_handlers(active_rplugin: ActiveRplugin) -> Do:
 def activated(active_rplugin: ActiveRplugin) -> Do:
     ribo_log.debug(f'activated {active_rplugin}')
     spec = active_rplugin.rplugin
-    yield NS.delay(__.runtime(f'chromatin/{spec.name}/*'))
+    yield NS.lift(runtime(f'chromatin/{spec.name}/*'))
     yield NS.modify(__.host_started(active_rplugin.meta))
 
 
@@ -67,7 +71,7 @@ def venv_from_rplugin(rplugin: VenvRplugin) -> Do:
     yield NS.from_io(cons_venv_under(venv_dir, rplugin))
 
 
-class activate_rplugin_io(PatMat, alg=Rplugin):
+class activate_rplugin_io(Case[Rplugin, NS[Env, ActiveRplugin]], alg=Rplugin):
 
     def dir_rplugin(self, rplugin: DirRplugin) -> NS[Env, ActiveRplugin]:
         python_exe = Path(sys.executable)
@@ -121,17 +125,16 @@ def deactivate_rplugin(active_rplugin: ActiveRplugin) -> Do:
     rplugin = active_rplugin.rplugin
     meta = active_rplugin.meta
     def undef(spec: RpcHandlerSpec) -> NvimIO[str]:
-        return NvimIO.cmd(spec.undef_cmdline, verbose=True)
+        return nvim_command(spec.undef_cmdline, verbose=True)
     @do(NvimIO[None])
     def run(handlers: List[RpcHandlerSpec]) -> Do:
-        yield NvimIO.cmd_sync(f'{camelcase(rplugin.name)}Quit')
+        yield nvim_command(f'{camelcase(rplugin.name)}Quit')
         yield stop_host(meta.channel)
         yield handlers.traverse(undef, NvimIO)
         ribo_log.debug(f'deactivated {active_rplugin}')
     cname = camelcaseify(rplugin.name)
     rpc_handlers_fun = f'{cname}RpcHandlers'
-    result = yield NS.call(rpc_handlers_fun)
-    handlers = yield NS.from_either(result // decode_json)
+    handlers = yield NS.lift(nvim_call_json(rpc_handlers_fun))
     yield NS.modify(__.deactivate_rplugin(meta))
     yield NS.lift(run(handlers))
     yield NS.pure(None)
@@ -163,13 +166,13 @@ def activation_complete() -> Do:
     rplugins = yield NS.inspect_either(_.uninitialized_rplugins)
     prefixes = rplugins / _.name / camelcase
     def wait() -> NvimIO[None]:
-        return prefixes.traverse(lambda p: NvimIO.delay(__.wait_for_command(f'{p}Poll')), NvimIO)
+        return prefixes.traverse(lambda p: wait_for_command(f'{p}Poll'), NvimIO)
     @do(NvimIO[None])
     def rplugin_stage(prefix: str, num: int) -> Do:
         cmd = f'{prefix}Stage{num}'
-        exists = yield NvimIO.delay(__.command_exists(cmd))
+        exists = yield command_exists(cmd)
         if exists:
-            yield NvimIO.cmd_sync(cmd)
+            yield nvim_command(cmd)
     def stage(num: int) -> NvimIO[None]:
         return prefixes.traverse(L(rplugin_stage)(_, num), NvimIO)
     yield NS.lift(wait())
@@ -201,7 +204,25 @@ def already_installed(venv_dir: Path, rplugin: Rplugin) -> Do:
         yield add_venv(venv.meta).nvim
 
 
-@trans.free.result(trans.st)
+@do(Either[str, Subprocess[Venv]])
+def install_venv(venv: Venv) -> Do:
+    ribo_log.debug(f'installing {venv}')
+    bin_path = yield venv.meta.bin_path
+    pip_bin = bin_path / 'pip'
+    args = List('install', '-U', '--no-cache', venv.req)
+    yield Right(Subprocess(pip_bin, args, venv, timeout=60))
+
+
+@prog.subproc.gather
+@do(NS[Env, GatherSubprocesses[Venv]])
+def install_plugins_procs(venvs: List[Venv], update: Boolean) -> Do:
+    action = 'updating' if update else 'installing'
+    ribo_log.debug(f'{action} venvs: {venvs}')
+    procs = yield NS.from_either(venvs.traverse(install_venv, Either))
+    return GatherSubprocesses(procs, timeout=60)
+
+
+@prog
 def install_plugins_result(results: List[Either[IOException, SubprocessResult[Venv]]]
                            ) -> NS[Env, Tuple[List[Venv], List[str]]]:
     venvs = results.flat_map(__.cata(ReplaceVal(Nil), List))
@@ -212,21 +233,10 @@ def install_plugins_result(results: List[Either[IOException, SubprocessResult[Ve
     return NS.pure((venvs, errors))
 
 
-@do(Either[str, Subprocess[Venv]])
-def install_venv(venv: Venv) -> Do:
-    ribo_log.debug(f'installing {venv}')
-    bin_path = yield venv.meta.bin_path
-    pip_bin = bin_path / 'pip'
-    args = List('install', '-U', '--no-cache', venv.req)
-    yield Right(Subprocess(pip_bin, args, venv))
-
-
-@do(Either[str, GatherSubprocs[VenvMeta, Tuple[List[Venv], List[IOException]]]])
+@prog.do
 def install_plugins(venvs: List[Venv], update: Boolean) -> Do:
-    action = 'updating' if update else 'installing'
-    ribo_log.debug(f'{action} venvs: {venvs}')
-    procs = yield venvs.traverse(install_venv, Either)
-    yield Right(GatherSubprocs(procs, install_plugins_result, timeout=60))
+    result = yield install_plugins_procs(venvs, update)
+    yield install_plugins_result(result)
 
 
 def venv_dir_setting() -> NS[ChromatinResources, Path]:
@@ -272,6 +282,7 @@ def venv_from_meta(venv_dir: Path, meta: VenvMeta) -> Do:
     yield NS.from_io(cons_venv_under(venv_dir, rplugin))
 
 
+@prog
 @do(NS[ChromatinResources, List[Venv]])
 def missing_plugins() -> Do:
     venv_dir = yield venv_dir_setting()

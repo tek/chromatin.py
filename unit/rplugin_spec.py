@@ -2,8 +2,8 @@ from kallikrein import Expectation, kf
 from kallikrein.expectable import kio
 
 from amino.test import fixture_path, temp_dir
-from amino.dispatch import PatMat
 from amino import IO
+from amino.case import Case
 
 from chromatin.model.rplugin import (DirRplugin, RpluginAbsent, RpluginReady, SiteRplugin, VenvRplugin, cons_rplugin,
                                      Rplugin, RpluginStatus)
@@ -21,7 +21,7 @@ class RpluginSpec:
     '''
 
     @property
-    def rplugin_installed(self) -> PatMat[Rplugin, IO[RpluginStatus]]:
+    def rplugin_installed(self) -> Case[Rplugin, IO[RpluginStatus]]:
         dir = temp_dir('rplugin', 'venv')
         return rplugin_installed(dir)
 

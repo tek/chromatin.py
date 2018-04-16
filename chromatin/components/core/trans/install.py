@@ -1,31 +1,29 @@
-from typing import Tuple
-
-from amino import do, List, _, Lists, Maybe, Just, L, Path
+from amino import do, List, _, Lists, L, Path
 from amino.do import Do
 from amino.boolean import false, true
 from amino.io import IOException
 from amino.lenses.lens import lens
 
-from ribosome.nvim.io import NS
-from ribosome.trans.api import trans
+from ribosome.nvim.io.state import NS
 from ribosome.logging import ribo_log
 from ribosome.process import SubprocessResult
-from ribosome.trans.action import Info, Error, LogMessage
-from ribosome.trans.effects import GatherSubprocs
-from ribosome.config.config import Resources
+from ribosome.compute.api import prog
+from ribosome.compute.output import Echo
+from ribosome.config.resources import Resources
+from ribosome.compute.prog import Prog
 
 from chromatin.components.core.logic import (install_plugins, add_installed, reboot_plugins, activate_by_names,
                                              deactivate_by_names, missing_plugins, venv_from_meta, venv_dir_setting)
-from chromatin import Env
 from chromatin.util import resources
 from chromatin.model.venv import Venv, VenvMeta
 from chromatin.settings import ChromatinSettings, setting
 from chromatin.config.component import ChromatinComponent
 from chromatin.config.resources import ChromatinResources
+from chromatin.env import Env
 
 
-@trans.free.cons(trans.st, trans.m, trans.log)
-@do(NS[Env, Maybe[LogMessage]])
+@prog.echo
+@do(NS[Env, Echo])
 def install_result(installed: List[SubprocessResult[Venv]], errors: List[IOException]) -> Do:
     errors.foreach(lambda e: ribo_log.caught_exception('installing plugin', e))
     success, failed = installed.split(_.success)
@@ -33,29 +31,34 @@ def install_result(installed: List[SubprocessResult[Venv]], errors: List[IOExcep
     failed_venvs = failed / _.data
     rplugins = success_venvs / _.rplugin
     yield rplugins.traverse(add_installed, NS)
-    msg = failed.empty.c(
-        lambda: (~success.empty).m(lambda: Info(resources.installed_plugins(success_venvs / _.name))),
-        lambda: Just(Error(resources.plugins_install_failed(failed_venvs / _.name))),
+    return (
+        Echo.error(resources.plugins_install_failed(failed_venvs / _.name))
+        if not failed.empty else
+        Echo.unit
+        if success.empty else
+        Echo.info(resources.installed_plugins(success_venvs / _.name))
     )
-    return msg
 
 
-@trans.free.result(trans.st, trans.gather_subprocs)
-@do(NS[ChromatinResources, GatherSubprocs[Venv, Tuple[List[Venv], List[IOException]]]])
+@prog.do
 def install_missing() -> Do:
     missing = yield missing_plugins()
-    yield NS.from_either(install_plugins(missing, false))
+    yield install_plugins(missing, false)
 
 
-@trans.free.cons(trans.st, trans.m, trans.log)
-@do(NS[ChromatinResources, Maybe[LogMessage]])
+@prog.echo
+@do(NS[ChromatinResources, Echo])
 def activate(*plugins: str) -> Do:
     already_installed = yield activate_by_names(Lists.wrap(plugins))
     names = already_installed / _.name
-    return (~already_installed.empty).m(lambda: Info(resources.already_active(names)))
+    return (
+        Echo.unit
+        if already_installed.empty else
+        Echo.info(resources.already_active(names))
+    )
 
 
-@trans.free.unit(trans.st)
+@prog
 def deactivate(*plugins: str) -> NS[Env, None]:
     return deactivate_by_names(Lists.wrap(plugins))
 
@@ -83,42 +86,46 @@ def updateable(venv_dir: Path, rplugins: List[str]) -> Do:
     yield selected.traverse(L(venv_from_meta)(venv_dir, _), NS)
 
 
-@trans.free.result(trans.st, trans.gather_subprocs)
-@do(NS[Resources[Env, ChromatinSettings, ChromatinComponent],
-       GatherSubprocs[Venv, Tuple[List[Venv], List[IOException]]]])
-def update_plugins_io(plugins: List[str]) -> Do:
+@prog
+@do(NS[Resources[Env, ChromatinSettings, ChromatinComponent], List[Venv]])
+def updateable_venvs(plugins: List[str]) -> Do:
     venv_dir = yield venv_dir_setting()
-    venvs = yield updateable(venv_dir, plugins).zoom(lens.data)
+    yield updateable(venv_dir, plugins).zoom(lens.data)
+
+
+@prog.do
+def update_plugins_io(plugins: List[str]) -> Do:
+    venvs = yield updateable_venvs(plugins)
     yield (
-        NS.error(resources.no_plugins_match_for_update(plugins))
+        Prog.error(resources.no_plugins_match_for_update(plugins))
         if venvs.empty else
-        NS.from_either(install_plugins(venvs, true))
+        install_plugins(venvs, true)
     )
 
 
-@trans.free.cons(trans.st, trans.log)
-@do(NS[ChromatinResources, LogMessage])
+@prog.echo
+@do(NS[ChromatinResources, Echo])
 def updated_plugins(results: List[SubprocessResult[Venv]], errors: List[IOException]) -> Do:
     errors.foreach(lambda e: ribo_log.caught_exception('updating plugin', e))
     success, failed = results.split(_.success)
     success_venvs = success / _.data
     failed_venvs = failed / _.data
     yield updated(success_venvs)
-    return failed.empty.c(
-        lambda: Info(resources.updated_plugins(success_venvs / _.name)),
-        lambda: Error(resources.plugins_install_failed(failed_venvs / _.name)),
+    return (
+        Echo.info(resources.updated_plugins(success_venvs / _.name))
+        if failed.empty else
+        Echo.error(resources.plugins_install_failed(failed_venvs / _.name))
     )
 
 
-@trans.free.do()
-@do(NS[Env, None])
+@prog.do
 def update_plugins(*ps: str) -> Do:
     plugins = Lists.wrap(ps)
-    success, fail = yield update_plugins_io(plugins).m
-    yield updated_plugins(success, fail).m
+    success, fail = yield update_plugins_io(plugins)
+    yield updated_plugins(success, fail)
 
 
-@trans.free.unit(trans.st)
+@prog
 def reboot(*plugins: str) -> NS[ChromatinResources, None]:
     return reboot_plugins(Lists.wrap(plugins)).replace(None)
 

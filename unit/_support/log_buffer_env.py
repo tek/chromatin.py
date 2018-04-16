@@ -1,13 +1,11 @@
-from ribosome.trans.action import LogMessage
 from ribosome.request.rpc import DefinedHandler
-from ribosome.config.config import Config
-from ribosome.config.settings import Settings
+from ribosome.compute.output import Echo
 
 from amino import List, Nil, Nothing, Map, Maybe
 
-from chromatin import Env
 from chromatin.model.rplugin import Rplugin, ActiveRpluginMeta
 from chromatin.model.venv import VenvMeta
+from chromatin.env import Env
 
 
 class LogBufferEnv(Env):
@@ -26,7 +24,7 @@ class LogBufferEnv(Env):
             active: List[ActiveRpluginMeta],
             uninitialized: List[ActiveRpluginMeta],
             handlers: Map[str, List[DefinedHandler]],
-            log_buffer: List[LogMessage]=Nil,
+            log_buffer: List[Echo]=Nil,
     ) -> None:
         self.rplugins = rplugins
         self.chromatin_rplugin = chromatin_rplugin

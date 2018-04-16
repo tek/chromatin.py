@@ -1,60 +1,65 @@
-from amino import List, __
+from amino import List, do, Do
 
 from ribosome.config.config import Config
 from ribosome.request.handler.handler import RequestHandler
 from ribosome.request.handler.prefix import Full, Plain
-from ribosome.trans.api import trans
-from ribosome.nvim import NvimIO
 from ribosome import ribo_log
+from ribosome.compute.api import prog
+from ribosome.nvim.api.variable import variable_set, variable_prefixed_str
+from ribosome.nvim.io.state import NS
 
 name = 'flagellum'
 
 
-@trans.free.unit(trans.nio)
-def stage_1() -> NvimIO[None]:
-    return NvimIO.delay(__.vars.set('flag', 1))
+@prog
+def stage_1() -> NS[None, None]:
+    return NS.lift(variable_set('flag', 1))
 
 
-@trans.free.unit()
-def test() -> None:
-    ribo_log.info(f'{name} working')
+@prog
+def test() -> NS[None, None]:
+    return NS.simple(ribo_log.info, f'{name} working')
 
 
-@trans.free.result()
-def reboot_test() -> int:
-    return 17
+@prog
+def reboot_test() -> NS[None, None]:
+    return NS.pure(17)
 
 
-@trans.free.unit(trans.nio)
-def arg_test(num: int) -> NvimIO[None]:
-    value = yield NvimIO.delay(lambda v: v.vars.p('value') | 'failure')
+@prog
+@do(NS[None, None])
+def arg_test(num: int) -> Do:
+    value_e = yield NS.lift(variable_prefixed_str('value'))
+    value = value_e | 'failure'
     ribo_log.info(f'{value} {num}')
 
 
-@trans.free.unit(trans.nio)
-def conf_test() -> NvimIO[None]:
-    value = yield NvimIO.delay(lambda v: v.vars.p('value') | 'failure')
+@prog
+@do(NS[None, None])
+def conf_test() -> Do:
+    value_e = yield NS.lift(variable_prefixed_str('value'))
+    value = value_e | 'failure'
     ribo_log.info(value)
 
 
-@trans.free.unit()
-def vim_enter() -> None:
-    ribo_log.info('autocmd works')
+@prog
+def vim_enter() -> NS[None, None]:
+    return NS.simple(ribo_log.info, 'autocmd works')
 
 
-@trans.free.unit(trans.nio)
-def stage_2() -> NvimIO[None]:
-    return NvimIO.delay(__.vars.set('cil', 1))
+@prog
+def stage_2() -> NS[None, None]:
+    return NS.lift(variable_set('cil', 1))
 
 
-@trans.free.unit()
-def stage_4() -> None:
-    ribo_log.info(f'{name} initialized')
+@prog
+def stage_4() -> NS[None, None]:
+    return NS.simple(ribo_log.info, f'{name} initialized')
 
 
-@trans.free.unit(trans.nio)
-def quit() -> NvimIO[None]:
-    return NvimIO.delay(__.vars.set('quit', 1))
+@prog
+def quit() -> NS[None, None]:
+    return NS.lift(variable_set('quit', 1))
 
 
 config = Config.cons(

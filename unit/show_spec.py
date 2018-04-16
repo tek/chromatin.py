@@ -1,24 +1,40 @@
 from kallikrein import k, Expectation
 from kallikrein.matchers.maybe import be_just
+from kallikrein.matchers import contain
+from kallikrein.matchers.match_with import match_with
 
-from ribosome.test.integration.run import DispatchHelper
-from ribosome.trans.action import LogMessage, Info
-from ribosome.nvim.io import NS
-from ribosome.trans.send_message import transform_data_state
-from ribosome.dispatch.run import DispatchState
+from ribosome.test.integration.run import RequestHelper
+from ribosome.compute.output import Echo
 
-from amino import List, Just, __
+from test.base import buffering_logger, rplugin_dir
+
+from amino import List, Map
 from amino.test.spec import SpecBase
 from amino.test import temp_dir, fixture_path
 from amino.lenses.lens import lens
 
 from chromatin.model.rplugin import Rplugin
-from chromatin import config
 from chromatin.util import resources
+from chromatin.config.config import chromatin_config
+from chromatin.config.state import ChromatinState
 
 from unit._support.log_buffer_env import LogBufferEnv
 
 name = 'flagellum'
+spec = rplugin_dir(name)
+dir = temp_dir('rplugin', 'venv')
+vars = Map(
+    chromatin_rplugins=[dict(name=name, spec=spec)],
+    chromatin_venv_dir=str(dir),
+)
+rplugin = Rplugin.cons(name, spec)
+plugin = Rplugin.cons('flagellum', spec)
+helper = RequestHelper.strict(lens.basic.state_ctor.set(LogBufferEnv.cons)(chromatin_config), vars=vars,
+                              logger=buffering_logger).update_data(rplugins=List(rplugin))
+
+
+def check(state: ChromatinState) -> Expectation:
+    return k(state.data.log_buffer.head).must(be_just(Echo.info(resources.show_plugins(dir, List(plugin)))))
 
 
 class ShowSpec(SpecBase):
@@ -31,22 +47,7 @@ class ShowSpec(SpecBase):
         return str(fixture_path('rplugin', name))
 
     def one(self) -> Expectation:
-        dir = temp_dir('rplugin', 'venv')
-        vars = dict(
-            chromatin_rplugins=[dict(name=name, spec=self.spec)],
-            chromatin_venv_dir=str(dir),
-        )
-        rplugin = Rplugin.cons(name, self.spec)
-        plugin = Rplugin.cons('flagellum', self.spec)
-        helper0 = DispatchHelper.cons(config.copy(state_ctor=LogBufferEnv.cons), vars=vars)
-        data0 = helper0.state.data
-        data = data0.copy(rplugins=List(rplugin))
-        def logger(msg: LogMessage) -> NS[DispatchState, None]:
-            return NS.modify(__.append1.log_buffer(msg)).zoom(lens.state.data)
-        helper = helper0.copy(
-            state=helper0.state.copy(data=data, logger=Just(logger)),
-        )
-        r = helper.loop('command:show_plugins').unsafe(helper.vim)
-        return k(r.data.log_buffer.head).must(be_just(Info(resources.show_plugins(dir, List(plugin)))))
+        return helper.k_s('command:show_plugins').must(contain(match_with(check)))
+
 
 __all__ = ('ShowSpec',)

@@ -1,30 +1,37 @@
-from typing import Any
-
 from kallikrein import k, Expectation
 from kallikrein.matchers.maybe import be_just
+from kallikrein.matchers import contain
+from kallikrein.matchers.match_with import match_with
 
-from ribosome.test.integration.run import DispatchHelper
-from ribosome.nvim.io import NS
-from ribosome.plugin_state import PluginState
-from ribosome.dispatch.data import DIO, GatherSubprocsDIO
-from ribosome.dispatch.execute import execute_io
-from ribosome.trans.action import TransAction, Info, LogMessage
-from ribosome.process import SubprocessResult
+from ribosome.compute.output import Echo
 
-from amino import Just, Map, List, Nil, Right, Path, __
+from test.base import rplugin_dir, single_venv_data
+
+from amino import Map, List
 from amino.test.spec import SpecBase
-from amino.test import temp_dir, fixture_path
-from amino.lenses.lens import lens
 
-from chromatin import config
-from chromatin.model.rplugin import cons_rplugin, ActiveRpluginMeta
-from chromatin.model.venv import Venv, VenvMeta
+from chromatin.model.rplugin import ActiveRpluginMeta
 from chromatin.util import resources
-from chromatin.config.resources import ChromatinResources
-
-from unit._support.log_buffer_env import LogBufferEnv
+from chromatin.config.state import ChromatinState
 
 name = 'flagellum'
+spec = rplugin_dir(name)
+rplugin, venv, helper = single_venv_data(
+    name,
+    spec,
+    chromatin_rplugins=[dict(name=name, spec=spec)],
+)
+active_rplugin = ActiveRpluginMeta(name, 3, 1111)
+helper1 = helper.update_data(
+    rplugins=List(rplugin),
+    venvs=Map({name: venv.meta}),
+    active=List(active_rplugin),
+    ready=List(name),
+)
+
+
+def check(state: ChromatinState) -> Expectation:
+    return k(state.data.log_buffer.head).must(be_just(Echo.info(resources.updated_plugin(rplugin.name))))
 
 
 class UpdateSpec(SpecBase):
@@ -32,56 +39,8 @@ class UpdateSpec(SpecBase):
     update one plugin $one
     '''
 
-    @property
-    def spec(self) -> str:
-        return str(fixture_path('rplugin', name))
-
     def one(self) -> Expectation:
-        dir = temp_dir('rplugin', 'venv')
-        vars = dict(
-            chromatin_rplugins=[dict(name=name, spec=self.spec)],
-            chromatin_venv_dir=str(dir),
-        )
-        channel = 3
-        pid = 1111
-        rplugin = cons_rplugin(name, self.spec)
-        active = ActiveRpluginMeta(name, channel, pid)
-        venv = Venv(rplugin, VenvMeta(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null'))))
-        responses_strict = Map(
-            {
-                'jobstart': channel,
-                'jobpid': pid,
-                'FlagellumRpcHandlers': '[]',
-                'silent FlagellumStage1': 0,
-                'silent FlagellumStage2': 0,
-                'silent FlagellumStage3': 0,
-                'silent FlagellumStage4': 0,
-            }
-        )
-        def responses(req: str) -> Any:
-            return responses_strict.lift(req).o(Just(0))
-        def x_io(dio: DIO) -> NS[PluginState, TransAction]:
-            return (
-                NS.pure(List(Right(SubprocessResult(0, Nil, Nil, venv))))
-                if isinstance(dio, GatherSubprocsDIO) else
-                execute_io(dio)
-            )
-        helper0 = DispatchHelper.cons(config.copy(state_ctor=LogBufferEnv.cons), vars=vars, responses=responses,
-                                      io_executor=x_io)
-        data0 = helper0.state.data
-        data = data0.copy(
-            rplugins=List(rplugin),
-            venvs=Map({name: venv.meta}),
-            active=List(active),
-            ready=List(name),
-        )
-        def logger(msg: LogMessage) -> NS[ChromatinResources, None]:
-            return NS.modify(__.append1.log_buffer(msg)).zoom(lens.state.data)
-        helper = helper0.copy(
-            state=helper0.state.copy(data=data, logger=Just(logger)),
-        )
-        r = helper.loop('command:update', ('flagellum',)).unsafe(helper.vim)
-        return k(r.data.log_buffer.head).must(be_just(Info(resources.updated_plugin(rplugin.name))))
+        return helper1.k_s('command:update', 'flagellum').must(contain(match_with(check)))
 
 
 __all__ = ('UpdateSpec',)
