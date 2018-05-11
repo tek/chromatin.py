@@ -1,12 +1,12 @@
 from amino import List, do, Do
 
 from ribosome.config.config import Config
-from ribosome.request.handler.handler import RequestHandler
-from ribosome.request.handler.prefix import Full, Plain
+from ribosome.rpc.api import rpc
 from ribosome import ribo_log
 from ribosome.compute.api import prog
-from ribosome.nvim.api.variable import variable_set, variable_prefixed_str
+from ribosome.nvim.api.variable import variable_set, variable_prefixed_str, variable_set_prefixed
 from ribosome.nvim.io.state import NS
+from ribosome.rpc.data.prefix_style import Full, Plain
 
 name = 'flagellum'
 
@@ -59,22 +59,22 @@ def stage_4() -> NS[None, None]:
 
 @prog
 def quit() -> NS[None, None]:
-    return NS.lift(variable_set('quit', 1))
+    return NS.lift(variable_set_prefixed('quit', 1))
 
 
 config = Config.cons(
     name,
     prefix='flag',
-    request_handlers=List(
-        RequestHandler.trans_cmd(stage_1)(prefix=Full()),
-        RequestHandler.trans_cmd(stage_2)(prefix=Full()),
-        RequestHandler.trans_cmd(stage_4)(prefix=Full()),
-        RequestHandler.trans_cmd(quit)(prefix=Full()),
-        RequestHandler.trans_cmd(test)(),
-        RequestHandler.trans_cmd(arg_test)(),
-        RequestHandler.trans_cmd(conf_test)(),
-        RequestHandler.trans_function(reboot_test)(sync=True),
-        RequestHandler.trans_autocmd(vim_enter)(prefix=Plain()),
+    rpc=List(
+        rpc.write(stage_1).conf(prefix=Full()),
+        rpc.write(stage_2).conf(prefix=Full()),
+        rpc.write(stage_4).conf(prefix=Full()),
+        rpc.write(quit).conf(prefix=Full()),
+        rpc.write(test),
+        rpc.write(arg_test),
+        rpc.write(conf_test),
+        rpc.write(reboot_test).conf(sync=True),
+        rpc.autocmd(vim_enter).conf(prefix=Plain()),
     ),
 )
 

@@ -1,35 +1,33 @@
 from typing import Any, Tuple, TypeVar, Generic
 
-from amino import Map, List, Either, Nil, Right, Path, __
+from amino import Map, List, Either, Nil, Right, Path
 from amino.case import Case
 from amino.test import temp_dir, fixture_path
 from amino.lenses.lens import lens
 
 from ribosome.nvim.api.data import StrictNvimApi
 from ribosome import NvimApi
-from ribosome.test.integration.run import Handler, RequestHelper
 from ribosome.compute.output import (ProgIO, ProgGatherIOs, GatherIOs, ProgGatherSubprocesses, GatherSubprocesses, Echo,
                                      ProgIOEcho)
 from ribosome.compute.prog import Prog
 from ribosome.process import SubprocessResult
 from ribosome.nvim.io.state import NS
 from ribosome.compute.api import prog
+from ribosome.test.request import Handler
+from ribosome.test.config import TestConfig
 
 from chromatin.model.venv import Venv, VenvMeta
 from chromatin.config.config import chromatin_config
-from chromatin.settings import ChromatinSettings
-from chromatin.env import Env
-from chromatin.config.component import ChromatinComponent
-from chromatin.model.rplugin import cons_rplugin
+from chromatin.model.rplugin import cons_rplugin, Rplugin
 
-from unit._support.log_buffer_env import LogBufferEnv
+from tests.log_buffer_env import LogBufferEnv
 
 A = TypeVar('A')
 function_responses = Map(
     jobstart=3,
     jobpid=1111,
     jobstop=0,
-    FlagellumRpcHandlers='[]',
+    FlagellumRpcTriggers='[]',
 )
 command_responses = Map(
     FlagellumStage1=0,
@@ -37,8 +35,6 @@ command_responses = Map(
     FlagellumStage3=0,
     FlagellumStage4=0,
 )
-CrmRequestHelper = RequestHelper[ChromatinSettings, Env, ChromatinComponent]
-
 
 def test_handler(responses: Map[str, Any]) -> Handler:
     def handler(vim: StrictNvimApi, name: str, args: List[Any]) -> Either[str, Tuple[NvimApi, Any]]:
@@ -56,7 +52,7 @@ def test_command_handler(**extra: Any) -> Handler:
 
 @prog
 def buffering_logger(msg: Echo) -> NS[LogBufferEnv, None]:
-    return NS.modify(__.append1.log_buffer(msg))
+    return NS.modify(lambda a: a.append1.log_buffer(msg))
 
 
 class single_venv_io_interpreter(Generic[A], Case[ProgIO, Prog[A]], alg=ProgIO):
@@ -81,22 +77,21 @@ def rplugin_dir(name: str) -> str:
     return str(fixture_path('rplugin', name))
 
 
-def single_venv_data(name: str, spec: str, **extra_vars: Any) -> CrmRequestHelper:
+def single_venv_config(name: str, spec: str, **extra_vars: Any) -> Tuple[Rplugin, Venv, TestConfig]:
+    rplugin = cons_rplugin(name, spec)
     dir = temp_dir('rplugin', 'venv')
     vars = Map(chromatin_venv_dir=str(dir)) ** Map(extra_vars)
-    rplugin = cons_rplugin(name, spec)
-    venv = Venv(rplugin, VenvMeta(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null'))))
     conf = lens.basic.state_ctor.set(LogBufferEnv.cons)(chromatin_config)
-    return rplugin, venv, (
-        RequestHelper.cons(conf, vars=vars, io_interpreter=single_venv_io_interpreter(venv), logger=buffering_logger)
-        .strict(function_handler=test_function_handler(exists=1), command_handler=test_command_handler())
+    venv = Venv(rplugin, VenvMeta(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null'))))
+    return rplugin, venv, TestConfig.cons(
+        conf,
+        vars=vars,
+        io_interpreter=single_venv_io_interpreter(venv),
+        logger=buffering_logger,
+        function_handler=test_function_handler(exists=1),
+        command_handler=test_command_handler(),
     )
 
 
-def single_venv_helper(name: str, spec: str, **extra_vars: Any) -> CrmRequestHelper:
-    i, i, helper = single_venv_data(name, spec, **extra_vars)
-    return helper
-
-
 __all__ = ('test_handler', 'test_function_handler', 'single_venv_io_interpreter', 'rplugin_dir', 'test_command_handler',
-           'single_venv_data')
+           'single_venv_config',)

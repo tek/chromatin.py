@@ -1,5 +1,5 @@
-from ribosome.request.rpc import DefinedHandler
 from ribosome.compute.output import Echo
+from ribosome.rpc.define import ActiveRpcTrigger
 
 from amino import List, Nil, Nothing, Map, Maybe
 
@@ -23,7 +23,7 @@ class LogBufferEnv(Env):
             ready: List[str],
             active: List[ActiveRpluginMeta],
             uninitialized: List[ActiveRpluginMeta],
-            handlers: Map[str, List[DefinedHandler]],
+            triggers: Map[str, List[ActiveRpcTrigger]],
             log_buffer: List[Echo]=Nil,
     ) -> None:
         self.rplugins = rplugins
@@ -33,7 +33,7 @@ class LogBufferEnv(Env):
         self.ready = ready
         self.active = active
         self.uninitialized = uninitialized
-        self.handlers = handlers
+        self.triggers = triggers
         self.log_buffer = log_buffer
 
 

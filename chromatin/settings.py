@@ -4,7 +4,7 @@ from amino import Path, Try, Right, Either, do, Nil
 from amino.do import Do
 from amino.boolean import true, false
 
-from ribosome.config.settings import bool_setting, path_setting, list_setting, Settings
+from ribosome.config.settings import bool_setting, path_setting, list_setting
 from ribosome.config.setting import Setting
 from ribosome.nvim.io.state import NS
 from ribosome.config.resources import Resources
@@ -13,7 +13,6 @@ from chromatin.util.resources import xdg_cache_home, create_venv_dir_error
 
 A = TypeVar('A')
 D = TypeVar('D')
-CC = TypeVar('CC')
 
 handle_crm_help = '''When updating plugins, chromatin can also update itself. To take effect, neovim has to be
 restarted.
@@ -45,33 +44,19 @@ def default_venv_dir() -> Do:
 
 
 # FIXME validate `rplugins` correctly; if it is e.g. a list[str], this will result in an exception in `read_conf`
-class ChromatinSettings(Settings):
 
-    def __init__(self) -> None:
-        super().__init__('chromatin')
-        self.handle_crm = bool_setting('handle_crm', 'update chromatin', handle_crm_help, True, Right(true))
-        self.venv_dir = path_setting('venv_dir', 'virtualenv base directory', venv_dir_help, True, default_venv_dir())
-        self.rplugins = list_setting('rplugins', 'rplugin config', rplugin_help, True, Right(Nil))
-        self.autostart = bool_setting('autostart', 'autostart plugins', autostart_help, True, Right(true))
-        self.debug_pythonpath = bool_setting('debug_pythonpath', 'pass through $PYTHONPATH', debug_pythonpath_help,
-                                             True, Right(false))
-        self.autoreboot = bool_setting('autoreboot', 'autoreboot plugins', autoreboot_help, True, Right(true))
+handle_crm = bool_setting('handle_crm', 'update chromatin', handle_crm_help, True, Right(true))
+venv_dir = path_setting('venv_dir', 'virtualenv base directory', venv_dir_help, True, default_venv_dir())
+rplugins = list_setting('rplugins', 'rplugin config', rplugin_help, True, Right(Nil))
+autostart = bool_setting('autostart', 'autostart plugins', autostart_help, True, Right(true))
+debug_pythonpath = bool_setting('debug_pythonpath', 'pass through $PYTHONPATH', debug_pythonpath_help, True,
+                                Right(false))
+autoreboot = bool_setting('autoreboot', 'autoreboot plugins', autoreboot_help, True, Right(true))
 
 
-def setting(attr: Callable[[ChromatinSettings], Setting]) -> NS[Resources[D, ChromatinSettings, CC], A]:
-    return NS.inspect_f(lambda a: attr(a.settings).value_or_default)
-
-
-@do(NS[Resources[D, ChromatinSettings, CC], None])
-def update_setting(attr: Callable[[ChromatinSettings], Setting[A]], value: A) -> Do:
-    s = yield NS.inspect(lambda a: attr(a.settings))
-    yield NS.lift(s.update(value))
-
-
-@do(NS[Resources[D, ChromatinSettings, CC], None])
-def ensure_setting(attr: Callable[[ChromatinSettings], Setting[A]], value: A) -> Do:
-    s = yield NS.inspect(lambda a: attr(a.settings))
-    yield NS.lift(s.ensure(value))
+@do(NS[D, None])
+def ensure_setting(setting: Setting[A], value: A) -> Do:
+    yield NS.lift(setting.ensure(value))
 
 
 __all__ = ('ChromatinSettings', 'setting', 'update_setting', 'ensure_setting')

@@ -27,6 +27,12 @@ def check_venv(base_dir: Path, plugin: Rplugin) -> Do:
     )
 
 
+@do(IO[Boolean])
+def venv_exists(base_dir: Path, plugin: Rplugin) -> Do:
+    status = yield check_venv(base_dir, plugin)
+    return isinstance(status, VenvExistent)
+
+
 @do(IO[VenvPackageStatus])
 def venv_package_status(venv: Venv, req: str) -> Do:
     ws = yield IO.delay(pkg_resources.WorkingSet, [venv.site])
@@ -53,7 +59,7 @@ class venv_status_check(Case[VenvExistent, IO[Boolean]], alg=VenvStatus):
         return IO.pure(false)
 
 
-class rplugin_installed(Case[Rplugin, IO[RpluginStatus]], alg=Rplugin):
+class rplugin_status(Case[Rplugin, IO[RpluginStatus]], alg=Rplugin):
 
     def __init__(self, base_dir: Path) -> None:
         self.base_dir = base_dir
@@ -78,4 +84,11 @@ class rplugin_installed(Case[Rplugin, IO[RpluginStatus]], alg=Rplugin):
         return ctor(rplugin)
 
 
-__all__ = ('RpluginFacade',)
+@do(IO[Boolean])
+def rplugin_ready(base_dir: Path, plugin: Rplugin) -> Do:
+    status = yield rplugin_status(base_dir)(plugin)
+    return isinstance(status, RpluginReady)
+
+
+__all__ = ('check_venv', 'venv_exists', 'venv_package_installed', 'venv_status_check', 'rplugin_status',
+           'rplugin_ready',)

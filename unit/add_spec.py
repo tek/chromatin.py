@@ -2,23 +2,37 @@ from typing import TypeVar
 
 from kallikrein import k, Expectation
 from kallikrein.matchers import contain
-from kallikrein.matchers.match_with import match_with
 
-from test.base import single_venv_helper, rplugin_dir
+from tests.base import rplugin_dir, single_venv_config
 
-from amino import Path
+from amino import Path, do, Do
 from amino.test.spec import SpecBase
 
-from ribosome.test.klk import kn
+from ribosome.test.prog import request
+from ribosome.nvim.io.state import NS
+from ribosome.test.unit import unit_test
 
 from chromatin.model.rplugin import ActiveRpluginMeta
-from chromatin.config.state import ChromatinState
+from chromatin.env import Env
 
 name = 'flagellum'
 A = TypeVar('A')
+target = ActiveRpluginMeta(name, 3, 1111)
 
 
-# TODO kallikrein: make `match_with` work with `MultiExpectation`
+@do(NS[Env, Expectation])
+def add_spec(spec: str) -> Do:
+    yield request('cram', spec, name)
+    data = yield NS.inspect(lambda a: a.data)
+    return k(data.venvs.k).must(contain(name)) & k(data.active).must(contain(target))
+
+@do(NS[Env, Expectation])
+def directory_spec(spec: str) -> Do:
+    yield request('cram', spec, 'flagellum')
+    active = yield NS.inspect(lambda a: a.data.active)
+    return k(active).must(contain(target))
+
+
 class AddSpec(SpecBase):
     '''
     add a plugin $add
@@ -27,22 +41,15 @@ class AddSpec(SpecBase):
 
     def add(self) -> Expectation:
         spec = rplugin_dir(name)
-        helper = single_venv_helper(name, spec)
-        def check(state: ChromatinState) -> Expectation:
-            return (
-                # k(state.data.venvs.k).must(contain(name)) &
-                k(state.data.active).must(contain(ActiveRpluginMeta(name, 3, 1111)))
-            )
-        return helper.k_s('command:cram', spec, name).must(contain(match_with(check)))
+        rplugin, venv, conf = single_venv_config(name, spec)
+        return unit_test(conf, add_spec, spec)
 
     def directory(self) -> Expectation:
         plugins_dir = rplugin_dir(name)
         plugin_dir = Path(plugins_dir) / name
         spec = f'dir:{plugin_dir}'
-        helper = single_venv_helper(name, spec)
-        def check(state: ChromatinState) -> Expectation:
-            return k(state.data.active).must(contain(ActiveRpluginMeta(name, 3, 1111)))
-        return helper.k_s('command:cram', spec, 'flagellum').must(contain(match_with(check)))
+        rplugin, venv, conf = single_venv_config(name, spec)
+        return unit_test(conf, directory_spec, spec)
 
 
 __all__ = ('AddSpec',)

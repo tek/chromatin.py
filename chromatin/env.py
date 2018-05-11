@@ -1,8 +1,8 @@
 from typing import Any
 
-from ribosome.request.rpc import DefinedHandler
 from ribosome.nvim.io.compute import NvimIO
 from ribosome.nvim.io.api import N
+from ribosome.rpc.define import ActiveRpcTrigger
 
 from amino import List, _, Either, Boolean, Map, __, Maybe, Nil, L, do, Do
 from amino.dat import Dat
@@ -23,7 +23,7 @@ class Env(Dat['Env']):
             ready: List[str]=Nil,
             active: List[ActiveRpluginMeta]=Nil,
             uninitialized: List[ActiveRpluginMeta]=Nil,
-            handlers: Map[str, List[DefinedHandler]]=Map(),
+            triggers: Map[str, List[ActiveRpcTrigger]]=Map(),
     ) -> 'Env':
         return Env(
             rplugins,
@@ -33,7 +33,7 @@ class Env(Dat['Env']):
             ready,
             active,
             uninitialized,
-            handlers,
+            triggers,
         )
 
     def __init__(
@@ -45,7 +45,7 @@ class Env(Dat['Env']):
             ready: List[str],
             active: List[ActiveRpluginMeta],
             uninitialized: List[ActiveRpluginMeta],
-            handlers: Map[str, List[DefinedHandler]],
+            triggers: Map[str, List[ActiveRpcTrigger]],
     ) -> None:
         self.rplugins = rplugins
         self.chromatin_rplugin = chromatin_rplugin
@@ -54,7 +54,7 @@ class Env(Dat['Env']):
         self.ready = ready
         self.active = active
         self.uninitialized = uninitialized
-        self.handlers = handlers
+        self.triggers = triggers
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
         return self.append1.rplugins(cons_rplugin(name, spec))
@@ -150,11 +150,11 @@ class Env(Dat['Env']):
     def uninitialized_rplugins(self) -> Either[str, List[ActiveRplugin]]:
         return self.as_active_rplugins(self.uninitialized)
 
-    def add_handlers(self, venv: Venv, handlers: List[DefinedHandler]) -> 'Env':
-        return self.append.handlers((venv.name, handlers))
+    def add_handlers(self, venv: Venv, triggers: List[ActiveRpcTrigger]) -> 'Env':
+        return self.append.triggers((venv.name, triggers))
 
-    def handlers_for(self, plugin: str) -> Either[str, List[DefinedHandler]]:
-        return self.handlers.lift(plugin).to_either(f'no handlers defined for {plugin}')
+    def handlers_for(self, plugin: str) -> Either[str, List[ActiveRpcTrigger]]:
+        return self.triggers.lift(plugin).to_either(f'no triggers defined for {plugin}')
 
     @property
     def installed_with_crm(self) -> List[VenvMeta]:

@@ -9,17 +9,17 @@ from ribosome.logging import ribo_log
 from ribosome.process import SubprocessResult
 from ribosome.compute.api import prog
 from ribosome.compute.output import Echo
-from ribosome.config.resources import Resources
 from ribosome.compute.prog import Prog
+from ribosome.compute.ribosome_api import Ribo
 
 from chromatin.components.core.logic import (install_plugins, add_installed, reboot_plugins, activate_by_names,
-                                             deactivate_by_names, missing_plugins, venv_from_meta, venv_dir_setting)
+                                             deactivate_by_names, missing_plugins, venv_from_meta)
 from chromatin.util import resources
 from chromatin.model.venv import Venv, VenvMeta
-from chromatin.settings import ChromatinSettings, setting
-from chromatin.config.component import ChromatinComponent
 from chromatin.config.resources import ChromatinResources
 from chromatin.env import Env
+from chromatin.settings import venv_dir, autoreboot
+from chromatin.components.core.trans.tpe import CrmRibosome
 
 
 @prog.echo
@@ -66,8 +66,8 @@ def deactivate(*plugins: str) -> NS[Env, None]:
 @do(NS[Env, None])
 def updated(result: List[Venv]) -> Do:
     venvs = result.filter_not(_.name == 'chromatin')
-    autoreboot = yield setting(_.autoreboot)
-    if autoreboot:
+    reboot = yield NS.lift(autoreboot.value_or_default())
+    if reboot:
         yield reboot_plugins(venvs / _.name)
 
 
@@ -87,10 +87,10 @@ def updateable(venv_dir: Path, rplugins: List[str]) -> Do:
 
 
 @prog
-@do(NS[Resources[Env, ChromatinSettings, ChromatinComponent], List[Venv]])
+@do(NS[CrmRibosome, List[Venv]])
 def updateable_venvs(plugins: List[str]) -> Do:
-    venv_dir = yield venv_dir_setting()
-    yield updateable(venv_dir, plugins).zoom(lens.data)
+    dir = yield Ribo.setting(venv_dir)
+    yield Ribo.zoom_main(updateable(dir, plugins))
 
 
 @prog.do

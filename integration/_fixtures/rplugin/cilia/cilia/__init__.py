@@ -2,12 +2,12 @@ from amino import List
 from amino.boolean import true
 
 from ribosome.config.config import Config
-from ribosome.request.handler.handler import RequestHandler
-from ribosome.request.handler.prefix import Full
+from ribosome.rpc.api import rpc
 from ribosome import ribo_log
 from ribosome.compute.api import prog
 from ribosome.nvim.io.state import NS
 from ribosome.nvim.api.variable import variable_set
+from ribosome.rpc.data.prefix_style import Full
 
 name = 'cilia'
 
@@ -35,11 +35,11 @@ def stage_4() -> NS[None, None]:
 config = Config.cons(
     name,
     prefix='cil',
-    request_handlers=List(
-        RequestHandler.trans_cmd(stage_1)(prefix=Full(), sync=true),
-        RequestHandler.trans_cmd(stage_2)(prefix=Full(), sync=true),
-        RequestHandler.trans_cmd(stage_4)(prefix=Full(), sync=true),
-        RequestHandler.trans_cmd(test)(),
+    rpc=List(
+        rpc.write(stage_1).conf(prefix=Full(), sync=true),
+        rpc.write(stage_2).conf(prefix=Full(), sync=true),
+        rpc.write(stage_4).conf(prefix=Full(), sync=true),
+        rpc.write(test),
     ),
 )
 

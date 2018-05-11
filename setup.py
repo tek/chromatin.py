@@ -12,9 +12,9 @@ setup(
     license='MIT',
     url='https://github.com/tek/chromatin',
     include_package_data=True,
-    packages=find_packages(exclude=['unit', 'unit.*', 'integration', 'integration.*']),
+    packages=find_packages(exclude=['unit', 'unit.*', 'integration', 'integration.*', 'tests', 'tests.*']),
     install_requires=[
-        'ribosome==13.0.0a40',
+        'ribosome==13.0.0a50',
     ],
     tests_require=[
         'kallikrein',
