@@ -20,7 +20,7 @@ from chromatin.model.venv import Venv, VenvMeta
 from chromatin.config.config import chromatin_config
 from chromatin.model.rplugin import cons_rplugin, Rplugin
 
-from tests.log_buffer_env import LogBufferEnv
+from test.log_buffer_env import LogBufferEnv
 
 A = TypeVar('A')
 function_responses = Map(

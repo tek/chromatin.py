@@ -3,7 +3,7 @@ from typing import TypeVar
 from kallikrein import k, Expectation
 from kallikrein.matchers import contain
 
-from tests.base import rplugin_dir, single_venv_config
+from test.base import rplugin_dir, single_venv_config
 
 from amino import Path, do, Do
 from amino.test.spec import SpecBase

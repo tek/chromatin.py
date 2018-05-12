@@ -7,7 +7,7 @@ from ribosome.data.plugin_state import PS
 from ribosome.test.unit import update_data, unit_test
 from ribosome.test.prog import request
 
-from tests.base import rplugin_dir, single_venv_config
+from test.base import rplugin_dir, single_venv_config
 
 from amino import List, do, Do
 from amino.test.spec import SpecBase

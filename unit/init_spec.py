@@ -14,7 +14,7 @@ from ribosome.test.unit import unit_test
 
 from chromatin.model.rplugin import ActiveRpluginMeta, VenvRplugin
 
-from tests.base import rplugin_dir, single_venv_config
+from test.base import rplugin_dir, single_venv_config
 
 name = 'flagellum'
 
