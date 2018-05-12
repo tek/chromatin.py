@@ -1,16 +1,17 @@
 import typing
 from typing import Tuple
 
+from amino import Path, do, __, List
+from amino.do import Do
+from amino.logging import module_log
+
 from ribosome.nvim.io.compute import NvimIO
 from ribosome.logging import ribo_log
 from ribosome.nvim.api.function import nvim_call_function, nvim_call_tpe, define_function
 from ribosome.nvim.io.api import N
 from ribosome.nvim.api.exists import function_exists
 
-from amino import Path, do, __, List
-from amino.do import Do
-
-
+log = module_log()
 stderr_handler_name = 'ChromatinJobStderr'
 
 stderr_handler_body = '''\

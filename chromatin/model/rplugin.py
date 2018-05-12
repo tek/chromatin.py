@@ -1,32 +1,41 @@
-from typing import Type, Any
+from typing import Type, Any, Tuple
+import json
 
-from uuid import UUID, uuid4
-
-from amino import Either, Map, Regex, do, Do, Right
+from amino import Either, Map, Regex, do, Do, Try, List, Maybe, Nil
 from amino.dat import ADT, Dat
-from amino.regex import Match
+from amino.json.decoder import decode_json_type
+
+
+class ConfigRplugin(Dat['ConfigRplugin']):
+
+    def __init__(self, spec: str, name: Maybe[str], debug: Maybe[bool], pythonpath: Maybe[List[str]]) -> None:
+        self.spec = spec
+        self.name = name
+        self.debug = debug
+        self.pythonpath = pythonpath
 
 
 class Rplugin(ADT['Rplugin']):
 
     @classmethod
-    def cons(cls, name: str, spec: str) -> 'Rplugin':
-        return cls(name, spec)
+    def cons(cls, name: str, spec: str, debug: Maybe[bool]=False, pythonpath: List[str]=Nil) -> 'Rplugin':
+        return cls(name, spec, debug, pythonpath)
 
-    def __init__(self, name: str, spec: str) -> None:
+    def __init__(self, name: str, spec: str, debug: bool, pythonpath: List[str]) -> None:
         self.name = name
         self.spec = spec
+        self.debug = debug
+        self.pythonpath = pythonpath
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.name == other.name and self.spec == other.spec
 
     @staticmethod
-    def from_config(data: dict) -> Either[str, 'Rplugin']:
-        m = Map(data)
-        def create(spec: str) -> Rplugin:
-            name = m.lift('name') | spec
-            return cons_rplugin(str(name), str(spec))
-        return m.lift('spec').to_either(f'rplugin data {data} missing attribute `spec`').map(create)
+    @do(Either[str, 'Rplugin'])
+    def from_config(data: dict) -> Do:
+        json_conf = yield Try(json.dumps, data)
+        conf = yield decode_json_type(json_conf, ConfigRplugin)
+        return cons_rplugin(conf)
 
     @staticmethod
     def simple(name: str) -> 'Rplugin':
@@ -54,13 +63,22 @@ prefixes = ctors.k.mk_string('|')
 spec_rex = Regex(f'(?P<prefix>{prefixes}):(?P<spec>.*)')
 
 
-def cons_rplugin(name: str, raw_spec: str) -> Rplugin:
-    @do(Either[str, Rplugin])
-    def select(match: Match) -> Do:
-        prefix, spec = yield match.all_groups('prefix', 'spec')
-        ctor = yield ctors.lift(prefix).to_either('invalid rplugin spec prefix `{prefix}`')
-        yield Right(ctor.cons(name, spec))
-    return spec_rex.match(raw_spec).flat_map(select) | (lambda: VenvRplugin.cons(name, raw_spec))
+@do(Either[str, Tuple[Type[Rplugin], str]])
+def parse_spec(raw_spec: str) -> Do:
+    match = yield spec_rex.match(raw_spec)
+    prefix, spec = yield match.all_groups('prefix', 'spec')
+    tpe = yield ctors.lift(prefix).to_either('invalid rplugin spec prefix `{prefix}`')
+    return tpe, spec
+
+
+def cons_rplugin(conf: ConfigRplugin) -> Rplugin:
+    tpe, spec = parse_spec(conf.spec).get_or_strict((VenvRplugin, conf.spec))
+    return tpe.cons(
+        conf.name.get_or_strict(spec),
+        spec,
+        conf.debug.get_or_strict(False),
+        conf.pythonpath.get_or_strict(Nil),
+    )
 
 
 class RpluginStatus(ADT['RpluginStatus']):

@@ -1,6 +1,6 @@
 from typing import Any, Tuple, TypeVar, Generic
 
-from amino import Map, List, Either, Nil, Right, Path
+from amino import Map, List, Either, Nil, Right, Path, Just, Nothing
 from amino.case import Case
 from amino.test import temp_dir, fixture_path
 from amino.lenses.lens import lens
@@ -18,7 +18,7 @@ from ribosome.test.config import TestConfig
 
 from chromatin.model.venv import Venv, VenvMeta
 from chromatin.config.config import chromatin_config
-from chromatin.model.rplugin import cons_rplugin, Rplugin
+from chromatin.model.rplugin import cons_rplugin, Rplugin, ConfigRplugin
 
 from test.log_buffer_env import LogBufferEnv
 
@@ -77,8 +77,12 @@ def rplugin_dir(name: str) -> str:
     return str(fixture_path('rplugin', name))
 
 
+def simple_rplugin(name: str, spec: str) -> Rplugin:
+    return cons_rplugin(ConfigRplugin(spec, Just(name), Nothing, Nothing))
+
+
 def single_venv_config(name: str, spec: str, **extra_vars: Any) -> Tuple[Rplugin, Venv, TestConfig]:
-    rplugin = cons_rplugin(name, spec)
+    rplugin = simple_rplugin(name, spec)
     dir = temp_dir('rplugin', 'venv')
     vars = Map(chromatin_venv_dir=str(dir)) ** Map(extra_vars)
     conf = lens.basic.state_ctor.set(LogBufferEnv.cons)(chromatin_config)

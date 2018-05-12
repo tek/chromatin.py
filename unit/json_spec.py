@@ -8,6 +8,8 @@ from chromatin.model.rplugin import cons_rplugin
 from chromatin.model.venv import Venv, VenvMeta
 from chromatin.env import Env
 
+from test.base import simple_rplugin
+
 
 class JsonSpec:
     '''
@@ -17,7 +19,7 @@ class JsonSpec:
 
     def venv(self) -> Expectation:
         p = Path('/')
-        rplugin = cons_rplugin('spec', 'name')
+        rplugin = simple_rplugin('spec', 'name')
         venv = Venv(rplugin, VenvMeta(rplugin.name, p, Right(p), Right(p)))
         return k(dump_json(venv)).must(be_right)
 

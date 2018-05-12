@@ -17,6 +17,6 @@ class ChromatinComponent(Dat['ChromatinComponent']):
         pass
 
 
-Comp = Component[Env, ComponentData, ChromatinComponent]
+Comp = Component[ComponentData, ChromatinComponent]
 
 __all__ = ('ChromatinComponent',)

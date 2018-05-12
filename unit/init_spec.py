@@ -37,7 +37,7 @@ def crm_rplugin_spec() -> Do:
     rplugin = data.chromatin_rplugin.to_either('no chromatin rplugin')
     venv = data.chromatin_venv.to_either('no chromatin venv')
     return (
-        k(rplugin).must(be_right(VenvRplugin('chromatin', 'chromatin'))) &
+        k(rplugin).must(be_right(VenvRplugin.cons('chromatin', 'chromatin'))) &
         k(venv // _.meta.python_executable).must(be_right(have_type(Path))) &
         k(venv / _.meta.rplugin).must(eq(rplugin / _.name))
     )

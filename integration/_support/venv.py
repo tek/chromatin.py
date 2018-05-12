@@ -25,10 +25,12 @@ from ribosome.test.integration.embed import plugin_test
 from ribosome.test.klk.matchers.command import command_must_exist
 from ribosome.test.klk.expectation import await_k
 
-from chromatin.model.rplugin import Rplugin, RpluginReady, cons_rplugin
+from chromatin.model.rplugin import Rplugin
 from chromatin.model.venv import VenvExistent, Venv
-from chromatin.rplugin import rplugin_status, venv_exists, rplugin_ready, check_venv
+from chromatin.rplugin import venv_exists, rplugin_ready, check_venv
 from chromatin import chromatin_config
+
+from test.base import simple_rplugin
 
 
 venvs_path = base_dir().parent / 'temp' / 'venv'
@@ -93,7 +95,7 @@ def setup_venv_dir(venv_dir: Maybe[Path] = Nothing) -> Do:
 
 @do(NvimIO[Rplugin])
 def setup_one(name: str, venv_dir: Maybe[Path]=Nothing) -> Do:
-    plugin = cons_rplugin(name, name)
+    plugin = simple_rplugin(name, name)
     path = fixture_path('rplugin', name)
     yield nvim_command('Cram', str(path), name)
     return plugin

@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left, IO
+from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left, IO, Maybe, Nothing
 from amino.do import Do
 from amino.state import State, EitherState
 from amino.lenses.lens import lens
@@ -13,7 +13,7 @@ from ribosome.compute.ribosome_api import Ribo
 
 from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, already_installed,
                                              add_venv)
-from chromatin.model.rplugin import Rplugin, cons_rplugin
+from chromatin.model.rplugin import Rplugin, cons_rplugin, ConfigRplugin
 from chromatin.components.core.trans.install import install_missing, install_result
 from chromatin.model.rplugin import RpluginReady, VenvRplugin
 from chromatin.model.venv import bootstrap, Venv
@@ -111,9 +111,8 @@ def show_plugins() -> Do:
 
 
 @prog.do
-def add_plugin(spec: str, name=None) -> Do:
-    name = name or spec
-    plugin = cons_rplugin(name, spec)
+def add_plugin(spec: str, name) -> Do:
+    plugin = cons_rplugin(ConfigRplugin(spec, Maybe.optional(name), Nothing, Nothing))
     yield plugins_added(List(plugin))
 
 
