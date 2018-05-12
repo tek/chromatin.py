@@ -26,7 +26,7 @@ execute 'python3 amino.amino_log.error(f"""error in chromatin rpc job on channel
 def host_cmdline(python_exe: Path, bin_path: Path, plug: Path, debug: bool, pythonpath: List[str]) -> typing.List[str]:
     debug_option = [] if debug else ['-E']
     ppath = pythonpath.mk_string(':')
-    pre = [] if pythonpath.empty else ['env' f'PYTHONPATH={ppath}']
+    pre = [] if pythonpath.empty else ['env', f'PYTHONPATH={ppath}']
     args = [str(bin_path / f'ribosome_start_plugin'), str(plug)]
     return pre + [str(python_exe)] + debug_option + args
 
