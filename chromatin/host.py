@@ -1,7 +1,7 @@
 import typing
 from typing import Tuple
 
-from amino import Path, do, __, List
+from amino import Path, do, __, List, Nil
 from amino.do import Do
 from amino.logging import module_log
 
@@ -22,10 +22,13 @@ python3 ribosome_envvar_file_logging()
 execute 'python3 amino.amino_log.error(f"""error in chromatin rpc job on channel ' . a:id . ':\\r' . err . '""")'
 '''
 
-def host_cmdline(python_exe: Path, bin_path: Path, plug: Path, debug: bool) -> typing.List[str]:
+
+def host_cmdline(python_exe: Path, bin_path: Path, plug: Path, debug: bool, pythonpath: List[str]) -> typing.List[str]:
     debug_option = [] if debug else ['-E']
+    ppath = pythonpath.mk_string(':')
+    pre = [] if pythonpath.empty else ['env' f'PYTHONPATH={ppath}']
     args = [str(bin_path / f'ribosome_start_plugin'), str(plug)]
-    return [str(python_exe)] + debug_option + args
+    return pre + [str(python_exe)] + debug_option + args
 
 
 @do(NvimIO[None])
@@ -36,9 +39,9 @@ def define_stderr_handler() -> Do:
 
 
 @do(NvimIO[Tuple[int, int]])
-def start_host(python_exe: Path, bin_path: Path, plugin_path: Path, debug: bool=False) -> Do:
+def start_host(python_exe: Path, bin_path: Path, plugin_path: Path, debug: bool=False, pythonpath: List[str]=Nil) -> Do:
     yield define_stderr_handler()
-    cmdline = host_cmdline(python_exe, bin_path, plugin_path, debug)
+    cmdline = host_cmdline(python_exe, bin_path, plugin_path, debug, pythonpath)
     ribo_log.debug(f'starting host: {cmdline}; debug: {debug}')
     channel = yield nvim_call_tpe(int, 'jobstart', cmdline, dict(rpc=True, on_stderr=stderr_handler_name))
     pid = yield nvim_call_tpe(int, 'jobpid', channel)

@@ -65,8 +65,9 @@ def activated(active_rplugin: ActiveRplugin) -> Do:
 
 @do(NvimIO[ActiveRplugin])
 def start_rplugin_host(rplugin: Rplugin, python_exe: Path, bin_path: Path, plugin_path: Path) -> Do:
-    debug = yield debug_pythonpath.value_or_default()
-    channel, pid = yield start_host(python_exe, bin_path, plugin_path, debug)
+    debug_global = yield debug_pythonpath.value
+    debug = debug_global.get_or_strict(rplugin.debug)
+    channel, pid = yield start_host(python_exe, bin_path, plugin_path, debug, rplugin.pythonpath)
     return ActiveRplugin(rplugin, ActiveRpluginMeta(rplugin.name, channel, pid))
 
 
