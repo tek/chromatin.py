@@ -18,7 +18,7 @@ from ribosome.compute.api import prog
 from ribosome.compute.output import GatherSubprocesses
 from ribosome.nvim.io.api import N
 from ribosome.nvim.api.command import runtime, nvim_command, nvim_command_output, nvim_sync_command
-from ribosome.nvim.api.exists import wait_for_command, command_exists
+from ribosome.nvim.api.exists import wait_for_command, command_exists, wait_until_function_produces
 from ribosome.nvim.api.function import nvim_call_json
 from ribosome.rpc.define import ActiveRpcTrigger, undef_command
 from ribosome.compute.ribosome_api import Ribo
@@ -174,12 +174,13 @@ def reboot_plugins(plugins: List[str]) -> Do:
     yield activate_by_names(plugins)
 
 
+# TODO don't fail if one plugin doesn't start
 @do(NS[Env, None])
 def activation_complete() -> Do:
     rplugins = yield NS.inspect_either(_.uninitialized_rplugins)
     prefixes = rplugins / _.name / camelcase
     def wait() -> NvimIO[None]:
-        return prefixes.traverse(lambda p: wait_for_command(f'{p}Poll'), NvimIO)
+        return prefixes.traverse(lambda p: wait_until_function_produces(True, f'{p}Poll'), NvimIO)
     @do(NvimIO[None])
     def rplugin_stage(prefix: str, num: int) -> Do:
         cmd = f'{prefix}Stage{num}'
@@ -246,7 +247,7 @@ def install_plugins_result(results: List[Either[IOException, SubprocessResult[Ve
     return NS.pure((venvs, errors))
 
 
-@prog.do
+@prog.do(None)
 def install_plugins(venvs: List[Venv], update: Boolean) -> Do:
     result = yield install_plugins_procs(venvs, update)
     yield install_plugins_result(result)
