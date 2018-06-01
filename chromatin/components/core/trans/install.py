@@ -40,7 +40,7 @@ def install_result(installed: List[SubprocessResult[Venv]], errors: List[IOExcep
     )
 
 
-@prog.do
+@prog.do(None)
 def install_missing() -> Do:
     missing = yield missing_plugins()
     yield install_plugins(missing, false)
@@ -93,7 +93,7 @@ def updateable_venvs(plugins: List[str]) -> Do:
     yield Ribo.zoom_main(updateable(dir, plugins))
 
 
-@prog.do
+@prog.do(None)
 def update_plugins_io(plugins: List[str]) -> Do:
     venvs = yield updateable_venvs(plugins)
     yield (
@@ -118,7 +118,7 @@ def updated_plugins(results: List[SubprocessResult[Venv]], errors: List[IOExcept
     )
 
 
-@prog.do
+@prog.do(None)
 def update_plugins(*ps: str) -> Do:
     plugins = Lists.wrap(ps)
     success, fail = yield update_plugins_io(plugins)

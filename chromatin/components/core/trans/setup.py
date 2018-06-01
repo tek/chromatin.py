@@ -60,7 +60,7 @@ def setup_venvs_ios() -> Do:
     yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(dir, _)), timeout=30))
 
 
-@prog.do
+@prog.do(None)
 def setup_venvs() -> Do:
     '''check whether a venv exists for each plugin in the env.
     for those that don't have one, create venvs in `g:chromatin_venv_dir`.
@@ -74,7 +74,7 @@ def post_setup() -> NS[ChromatinResources, None]:
     return activate_newly_installed()
 
 
-@prog.do
+@prog.do(None)
 def setup_plugins() -> Do:
     yield setup_venvs()
     installed, errors = yield install_missing()
@@ -89,14 +89,14 @@ def add_plugins(plugins: List[Rplugin]) -> None:
     yield Ribo.setting(autostart)
 
 
-@prog.do
+@prog.do(None)
 def plugins_added(plugins: List[Rplugin]) -> Do:
     autostart = yield add_plugins(plugins)
     if autostart:
         yield setup_plugins()
 
 
-@prog.do
+@prog.do(None)
 def init() -> Do:
     plugins = yield initialize()
     yield plugins_added(plugins)
@@ -110,7 +110,7 @@ def show_plugins() -> Do:
     return Echo.info(resources.show_plugins(dir, rplugins))
 
 
-@prog.do
+@prog.do(None)
 def add_plugin(spec: str, name) -> Do:
     plugin = cons_rplugin(ConfigRplugin(spec, Maybe.optional(name), Nothing, Nothing))
     yield plugins_added(List(plugin))
