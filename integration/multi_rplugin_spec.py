@@ -48,7 +48,7 @@ class MultiRpluginSpec(SpecBase):
 class ActivateMiscSpec(SpecBase):
 
     def proteome(self) -> Expectation:
-        return cached_venvs_test(List('proteome'), lambda: command_must_exist('ProAdd'))
+        return cached_venvs_test(List('proteome'), lambda: await_k(command_must_exist, 'ProAdd'))
 
 
 __all__ = ('MultiRpluginSpec',)
