@@ -26,6 +26,7 @@ def add_spec(spec: str) -> Do:
     data = yield NS.inspect(lambda a: a.data)
     return k(data.venvs.k).must(contain(name)) & k(data.active).must(contain(target))
 
+
 @do(NS[Env, Expectation])
 def directory_spec(spec: str) -> Do:
     yield request('cram', spec, 'flagellum')

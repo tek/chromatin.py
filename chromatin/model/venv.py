@@ -9,11 +9,15 @@ from amino import Path, IO, do, Boolean, env, Either, Try
 from amino.boolean import true, false
 from amino.do import Do
 from amino.dat import ADT, Dat
+from amino.logging import module_log
 
 from ribosome.process import Subprocess
 from ribosome.logging import ribo_log
 
 from chromatin.model.rplugin import Rplugin, VenvRplugin
+
+log = module_log()
+py_exe = f'python{sys.version_info.major}.{sys.version_info.minor}'
 
 
 class VenvMeta(Dat['VenvMeta']):
@@ -29,7 +33,7 @@ class VenvMeta(Dat['VenvMeta']):
             rplugin: str,
             dir: Path,
             python_executable: Either[str, Path],
-            bin_path: Either[str, Path]
+            bin_path: Either[str, Path],
     ) -> None:
         self.rplugin = rplugin
         self.dir = dir
@@ -53,7 +57,7 @@ class Venv(Dat['Venv']):
 
     @property
     def site(self) -> Path:
-        return self.dir / 'lib' / 'python3.6' / 'site-packages'
+        return self.dir / 'lib' / py_exe / 'site-packages'
 
     @property
     def plugin_path(self) -> Path:
@@ -110,9 +114,8 @@ class VenvAbsent(VenvStatus):
 
 
 @do(IO[Venv])
-def build(dir: Path, plugin: VenvRplugin) -> Do:
-    exe = 'python3' if 'VIRTUAL_ENV' in env else sys.executable
-    retval, out, err = yield Subprocess.popen(exe, '-m', 'venv', str(dir), '--upgrade', timeout=30)
+def build(interpreter: Path, dir: Path, plugin: VenvRplugin) -> Do:
+    retval, out, err = yield Subprocess.popen(interpreter, '-m', 'venv', str(dir), '--upgrade', timeout=30)
     success = retval == 0
     yield (
         IO.delay(cons_venv, dir, plugin)
@@ -139,11 +142,11 @@ def remove_dir(dir: Path) -> Do:
 
 
 @do(IO[Venv])
-def bootstrap(base_dir: Path, rplugin: VenvRplugin) -> Do:
+def bootstrap(interpreter: Path, base_dir: Path, rplugin: VenvRplugin) -> Do:
     venv_dir = base_dir / rplugin.name
     ribo_log.debug(f'bootstrapping {rplugin} in {venv_dir}')
     yield remove_dir(venv_dir)
-    yield build(venv_dir, rplugin)
+    yield build(interpreter, venv_dir, rplugin)
 
 
 class VenvPackageStatus(ADT['VenvPackageStatus']):

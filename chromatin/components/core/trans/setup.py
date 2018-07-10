@@ -1,6 +1,8 @@
+import sys
+import shutil
 from typing import Tuple
 
-from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left, IO, Maybe, Nothing
+from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left, IO, Maybe, Nothing, Path, env, Lists
 from amino.do import Do
 from amino.state import State, EitherState
 from amino.lenses.lens import lens
@@ -10,6 +12,8 @@ from ribosome import ribo_log
 from ribosome.compute.api import prog
 from ribosome.compute.output import Echo, GatherIOs
 from ribosome.compute.ribosome_api import Ribo
+from ribosome.nvim.io.compute import NvimIO
+from ribosome.nvim.io.api import N
 
 from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, already_installed,
                                              add_venv)
@@ -19,7 +23,7 @@ from chromatin.model.rplugin import RpluginReady, VenvRplugin
 from chromatin.model.venv import bootstrap, Venv
 from chromatin.rplugin import rplugin_status
 from chromatin.util import resources
-from chromatin.settings import venv_dir, autostart
+from chromatin.settings import venv_dir, autostart, interpreter
 from chromatin.config.resources import ChromatinResources
 from chromatin.env import Env
 from chromatin.components.core.trans.tpe import CrmRibosome
@@ -48,6 +52,25 @@ def bootstrap_result(result: List[Either[str, Venv]]) -> Do:
     yield EitherState.lift(ret)
 
 
+@do(NvimIO[Path])
+def virtualenv_interpreter(venv: str) -> Do:
+    path_s = yield N.from_either(env.get('PATH'))
+    path = Lists.split(path_s, ':')
+    clean_path = path.filter_not(lambda a: a.startswith(venv))
+    candidate = yield N.delay(lambda a: shutil.which('python3', path=clean_path.mk_string(':')))
+    return Path(candidate)
+
+
+def find_interpreter() -> NvimIO[Path]:
+    return env.get('VIRTUAL_ENV').cata(lambda e: N.delay(lambda a: sys.executable), virtualenv_interpreter)
+
+
+@do(NS[CrmRibosome, Path])
+def python_interpreter() -> Do:
+    user = yield Ribo.setting_raw(interpreter)
+    yield user.cata(lambda e: NS.lift(find_interpreter()), NS.pure)
+
+
 @prog.io.gather
 @do(NS[CrmRibosome, GatherIOs])
 def setup_venvs_ios() -> Do:
@@ -57,7 +80,8 @@ def setup_venvs_ios() -> Do:
     ready, absent = status.split_type(RpluginReady)
     yield Ribo.zoom_main((ready / _.rplugin).traverse(L(already_installed)(dir, _), NS))
     absent_venvs, other = (absent / _.rplugin).split_type(VenvRplugin)
-    yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(dir, _)), timeout=30))
+    interpreter = yield python_interpreter()
+    yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(interpreter, dir, _)), timeout=30))
 
 
 @prog.do(None)
