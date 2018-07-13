@@ -2,6 +2,11 @@ from typing import Any
 
 import sys
 import traceback
+import logging
+
+if len(sys.argv) >= 5 and sys.argv[4]:
+    logging.basicConfig(filename=sys.argv[4], level=logging.DEBUG)
+    logging.debug('starting crm_run')
 
 
 def echo(nvim: Any, msg: str) -> None:
