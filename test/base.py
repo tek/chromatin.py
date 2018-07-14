@@ -28,6 +28,7 @@ function_responses = Map(
     jobpid=1111,
     jobstop=0,
     FlagellumRpcTriggers='[]',
+    FlagellumPoll=True,
 )
 command_responses = Map(
     FlagellumStage1=0,

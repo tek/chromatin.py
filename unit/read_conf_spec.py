@@ -23,7 +23,7 @@ class ReadConfSpec(SpecBase):
     def read_conf(self) -> Expectation:
         rplugins = conf_data.map(Rplugin.from_config)
         successes = List(
-            Right(DirRplugin('null', '/dev/null', True, List('/some/path'))),
+            Right(DirRplugin.cons('null', '/dev/null', True, List('/some/path'))),
             Right(SiteRplugin.cons('plug', 'plug')),
         )
         return (
@@ -31,5 +31,6 @@ class ReadConfSpec(SpecBase):
             k(rplugins.lift(2)).must(be_just(be_left)) &
             k(rplugins.lift(3)).must(be_just(be_left))
         )
+
 
 __all__ = ('ReadConfSpec',)

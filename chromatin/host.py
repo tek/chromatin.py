@@ -23,7 +23,13 @@ execute 'python3 amino.amino_log.error(f"""error in chromatin rpc job on channel
 '''
 
 
-def host_cmdline(python_exe: Path, bin_path: Path, plug: Path, debug: bool, pythonpath: List[str]) -> typing.List[str]:
+def host_cmdline(
+        python_exe: Path,
+        bin_path: Path,
+        plug: Path,
+        debug: bool,
+        pythonpath: List[str],
+) -> typing.List[str]:
     debug_option = [] if debug else ['-E']
     ppath = pythonpath.mk_string(':')
     pre = [] if pythonpath.empty else ['env', f'RIBOSOME_PYTHONPATH={ppath}']
@@ -39,7 +45,13 @@ def define_stderr_handler() -> Do:
 
 
 @do(NvimIO[Tuple[int, int]])
-def start_host(python_exe: Path, bin_path: Path, plugin_path: Path, debug: bool=False, pythonpath: List[str]=Nil) -> Do:
+def start_host(
+        python_exe: Path,
+        bin_path: Path,
+        plugin_path: Path,
+        debug: bool=False,
+        pythonpath: List[str]=Nil,
+) -> Do:
     yield define_stderr_handler()
     cmdline = host_cmdline(python_exe, bin_path, plugin_path, debug, pythonpath)
     ribo_log.debug(f'starting host: {cmdline}; debug: {debug}')

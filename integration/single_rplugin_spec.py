@@ -1,6 +1,7 @@
 from kallikrein import Expectation, k
 from kallikrein.matchers.comparison import not_equal, greater
 from kallikrein.matcher import Matcher
+from kallikrein.matchers.typed import have_type
 
 from amino import List, do, Do
 from amino.test.spec import SpecBase
@@ -14,6 +15,7 @@ from ribosome.test.klk.expectation import await_k
 from ribosome.test.klk.matchers.variable import var_must_become
 from ribosome.nvim.api.rpc import plugin_name
 from ribosome.test.klk.matchers.command import command_must_not_exist
+from ribosome.nvim.io.data import NError
 
 from chromatin.util import resources
 
@@ -82,9 +84,9 @@ def deactivate_spec() -> Do:
     yield nvim_command('CrmDeactivate')
     yield await_k(command_must_not_exist, 'FlagTest')
     quit_var = yield var_must_become('flagellum_quit', 1)
-    pid = yield nvim_call_tpe(int, 'jobpid', channel)
+    pid = yield N.safe(nvim_call_tpe(int, 'jobpid', channel))
     return (
-        (k(pid) == 0) &
+        k(pid).must(have_type(NError)) &
         quit_var
     )
 

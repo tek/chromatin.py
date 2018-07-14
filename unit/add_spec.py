@@ -11,6 +11,7 @@ from amino.test.spec import SpecBase
 from ribosome.test.prog import request
 from ribosome.nvim.io.state import NS
 from ribosome.test.unit import unit_test
+from ribosome.nvim.api.variable import variable_set_prefixed
 
 from chromatin.model.rplugin import ActiveRpluginMeta
 from chromatin.env import Env
@@ -22,6 +23,8 @@ target = ActiveRpluginMeta(name, 3, 1111)
 
 @do(NS[Env, Expectation])
 def add_spec(spec: str) -> Do:
+    yield NS.lift(variable_set_prefixed('interpreter', '/usr/bin/python3.7'))
+    yield NS.lift(variable_set_prefixed('debug_pythonpath', True))
     yield request('cram', spec, name)
     data = yield NS.inspect(lambda a: a.data)
     return k(data.venvs.k).must(contain(name)) & k(data.active).must(contain(target))

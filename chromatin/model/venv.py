@@ -114,13 +114,14 @@ class VenvAbsent(VenvStatus):
 
 
 @do(IO[Venv])
-def build(interpreter: Path, dir: Path, plugin: VenvRplugin) -> Do:
+def build(global_interpreter: Path, dir: Path, rplugin: VenvRplugin) -> Do:
+    interpreter = rplugin.interpreter.get_or_strict(global_interpreter)
     retval, out, err = yield Subprocess.popen(interpreter, '-m', 'venv', str(dir), '--upgrade', timeout=30)
     success = retval == 0
     yield (
-        IO.delay(cons_venv, dir, plugin)
+        IO.delay(cons_venv, dir, rplugin)
         if success else
-        IO.failed(f'creating venv for {plugin}: {err.join_lines}')
+        IO.failed(f'creating venv for {rplugin}: {err.join_lines}')
     )
 
 
@@ -144,7 +145,7 @@ def remove_dir(dir: Path) -> Do:
 @do(IO[Venv])
 def bootstrap(interpreter: Path, base_dir: Path, rplugin: VenvRplugin) -> Do:
     venv_dir = base_dir / rplugin.name
-    ribo_log.debug(f'bootstrapping {rplugin} in {venv_dir}')
+    log.debug(f'bootstrapping {rplugin} in {venv_dir}')
     yield remove_dir(venv_dir)
     yield build(interpreter, venv_dir, rplugin)
 

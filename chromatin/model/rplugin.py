@@ -1,7 +1,7 @@
 from typing import Type, Any, Tuple
 import json
 
-from amino import Either, Map, Regex, do, Do, Try, List, Maybe, Nil
+from amino import Either, Map, Regex, do, Do, Try, List, Maybe, Nil, Nothing
 from amino.dat import ADT, Dat
 from amino.json.decoder import decode_json_type
 
@@ -18,14 +18,29 @@ class ConfigRplugin(Dat['ConfigRplugin']):
 class Rplugin(ADT['Rplugin']):
 
     @classmethod
-    def cons(cls, name: str, spec: str, debug: Maybe[bool]=False, pythonpath: List[str]=Nil) -> 'Rplugin':
-        return cls(name, spec, debug, pythonpath)
+    def cons(
+            cls,
+            name: str,
+            spec: str,
+            debug: bool=False,
+            pythonpath: List[str]=Nil,
+            interpreter: Maybe[str]=Nothing,
+    ) -> 'Rplugin':
+        return cls(name, spec, debug, pythonpath, interpreter)
 
-    def __init__(self, name: str, spec: str, debug: bool, pythonpath: List[str]) -> None:
+    def __init__(
+            self,
+            name: str,
+            spec: str,
+            debug: bool,
+            pythonpath: List[str],
+            interpreter: Maybe[str],
+    ) -> None:
         self.name = name
         self.spec = spec
         self.debug = debug
         self.pythonpath = pythonpath
+        self.interpreter = interpreter
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.name == other.name and self.spec == other.spec
