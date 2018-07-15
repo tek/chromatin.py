@@ -53,22 +53,30 @@ def bootstrap_result(result: List[Either[str, Venv]]) -> Do:
 
 
 @do(NvimIO[Path])
-def virtualenv_interpreter(venv: str) -> Do:
+def virtualenv_interpreter(venv: str, executable: str) -> Do:
     path_s = yield N.from_either(env.get('PATH'))
     path = Lists.split(path_s, ':')
     clean_path = path.filter_not(lambda a: a.startswith(venv))
-    candidate = yield N.delay(lambda a: shutil.which('python3', path=clean_path.mk_string(':')))
+    candidate = yield N.delay(lambda a: shutil.which(executable, path=clean_path.mk_string(':')))
     return Path(candidate)
 
 
-def find_interpreter() -> NvimIO[Path]:
-    return env.get('VIRTUAL_ENV').cata(lambda e: N.delay(lambda a: sys.executable), virtualenv_interpreter)
+@do(NvimIO[Path])
+def find_interpreter(spec: str) -> Do:
+    path = Path(spec)
+    exists = yield N.delay(lambda v: path.exists())
+    venv = env.get('VIRTUAL_ENV').get_or_strict('[no venv]')
+    yield (
+        N.pure(path)
+        if exists else
+        virtualenv_interpreter(venv, spec)
+    )
 
 
 @do(NS[CrmRibosome, Path])
 def python_interpreter() -> Do:
-    user = yield Ribo.setting_raw(interpreter)
-    yield user.cata(lambda e: NS.lift(find_interpreter()), NS.pure)
+    spec = yield Ribo.setting_raw(interpreter)
+    yield find_interpreter(spec.get_or_strict('python3.7'))
 
 
 @prog.io.gather

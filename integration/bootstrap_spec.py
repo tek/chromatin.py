@@ -29,7 +29,7 @@ bootstrap_config = test_config.mod.vars(lambda a: a ** vars).set.autostart(False
 @do(NvimIO[Expectation])
 def bootstrap_spec() -> Do:
     debug_log = temp_dir('bootstrap') / 'log'
-    yield variable_set_prefixed('interpreter', '/usr/bin/python3.7')
+    yield variable_set_prefixed('interpreter', 'python3.7')
     yield variable_set_prefixed('autobootstrap', False)
     yield variable_set_prefixed('bootstrap_debug_log', str(debug_log))
     yield option_cat('runtimepath', List(str(project)))
