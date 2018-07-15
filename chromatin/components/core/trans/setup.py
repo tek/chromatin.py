@@ -76,7 +76,7 @@ def find_interpreter(spec: str) -> Do:
 @do(NS[CrmRibosome, Path])
 def python_interpreter() -> Do:
     spec = yield Ribo.setting_raw(interpreter)
-    yield find_interpreter(spec.get_or_strict('python3.7'))
+    yield NS.lift(find_interpreter(spec.get_or_strict('python3.7')))
 
 
 @prog.io.gather
