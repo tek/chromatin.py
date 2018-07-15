@@ -34,6 +34,7 @@ from chromatin.rplugin import venv_package_installed
 from chromatin.env import Env
 from chromatin.components.core.trans.tpe import CrmRibosome
 from chromatin.settings import handle_crm, venv_dir, rplugins, debug_pythonpath
+from chromatin.util.interpreter import global_interpreter
 
 log = module_log()
 
@@ -79,11 +80,13 @@ def venv_from_rplugin(rplugin: VenvRplugin) -> Do:
 
 class activate_rplugin_io(Case[Rplugin, NvimIO[ActiveRplugin]], alg=Rplugin):
 
-    def dir_rplugin(self, rplugin: DirRplugin) -> NvimIO[ActiveRplugin]:
+    @do(NvimIO[ActiveRplugin])
+    def dir_rplugin(self, rplugin: DirRplugin) -> Do:
+        interpreter = yield global_interpreter()
         python_exe = Path(sys.executable)
         bin_path = python_exe.parent
         plugin_path = Path(rplugin.spec) / '__init__.py'
-        return start_rplugin_host(rplugin, python_exe, bin_path, plugin_path)
+        yield start_rplugin_host(rplugin, interpreter, bin_path, plugin_path)
 
     @do(NvimIO[ActiveRplugin])
     def venv_rplugin(self, rplugin: VenvRplugin) -> Do:

@@ -52,33 +52,6 @@ def bootstrap_result(result: List[Either[str, Venv]]) -> Do:
     yield EitherState.lift(ret)
 
 
-@do(NvimIO[Path])
-def virtualenv_interpreter(venv: str, executable: str) -> Do:
-    path_s = yield N.from_either(env.get('PATH'))
-    path = Lists.split(path_s, ':')
-    clean_path = path.filter_not(lambda a: a.startswith(venv))
-    candidate = yield N.delay(lambda a: shutil.which(executable, path=clean_path.mk_string(':')))
-    return Path(candidate)
-
-
-@do(NvimIO[Path])
-def find_interpreter(spec: str) -> Do:
-    path = Path(spec)
-    exists = yield N.delay(lambda v: path.exists())
-    venv = env.get('VIRTUAL_ENV').get_or_strict('[no venv]')
-    yield (
-        N.pure(path)
-        if exists else
-        virtualenv_interpreter(venv, spec)
-    )
-
-
-@do(NS[CrmRibosome, Path])
-def python_interpreter() -> Do:
-    spec = yield Ribo.setting_raw(interpreter)
-    yield NS.lift(find_interpreter(spec.get_or_strict('python3.7')))
-
-
 @prog.io.gather
 @do(NS[CrmRibosome, GatherIOs])
 def setup_venvs_ios() -> Do:
@@ -88,8 +61,8 @@ def setup_venvs_ios() -> Do:
     ready, absent = status.split_type(RpluginReady)
     yield Ribo.zoom_main((ready / _.rplugin).traverse(L(already_installed)(dir, _), NS))
     absent_venvs, other = (absent / _.rplugin).split_type(VenvRplugin)
-    interpreter = yield python_interpreter()
-    yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(interpreter, dir, _)), timeout=30))
+    global_interpreter = yield Ribo.setting_raw(interpreter)
+    yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(global_interpreter.to_maybe, dir, _)), timeout=30))
 
 
 @prog.do(None)

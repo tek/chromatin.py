@@ -1,20 +1,21 @@
 import abc
 import shutil
-import venv  # type: ignore
+import venv
 import sys
 import pkg_resources
 from types import SimpleNamespace
 
-from amino import Path, IO, do, Boolean, env, Either, Try
+from amino import Path, IO, do, Boolean, Either, Try, Maybe
 from amino.boolean import true, false
 from amino.do import Do
 from amino.dat import ADT, Dat
 from amino.logging import module_log
 
 from ribosome.process import Subprocess
-from ribosome.logging import ribo_log
+
 
 from chromatin.model.rplugin import Rplugin, VenvRplugin
+from chromatin.util.interpreter import rplugin_interpreter
 
 log = module_log()
 py_exe = f'python{sys.version_info.major}.{sys.version_info.minor}'
@@ -115,8 +116,8 @@ class VenvAbsent(VenvStatus):
 
 @do(IO[Venv])
 def build(global_interpreter: Path, dir: Path, rplugin: VenvRplugin) -> Do:
-    interpreter = rplugin.interpreter.get_or_strict(global_interpreter)
-    retval, out, err = yield Subprocess.popen(interpreter, '-m', 'venv', str(dir), '--upgrade', timeout=30)
+    interpreter = yield rplugin_interpreter(global_interpreter, rplugin)
+    retval, out, err = yield Subprocess.popen(str(interpreter), '-m', 'venv', str(dir), '--upgrade', timeout=30)
     success = retval == 0
     yield (
         IO.delay(cons_venv, dir, rplugin)
@@ -143,11 +144,11 @@ def remove_dir(dir: Path) -> Do:
 
 
 @do(IO[Venv])
-def bootstrap(interpreter: Path, base_dir: Path, rplugin: VenvRplugin) -> Do:
+def bootstrap(global_interpreter: Maybe[Path], base_dir: Path, rplugin: VenvRplugin) -> Do:
     venv_dir = base_dir / rplugin.name
     log.debug(f'bootstrapping {rplugin} in {venv_dir}')
     yield remove_dir(venv_dir)
-    yield build(interpreter, venv_dir, rplugin)
+    yield build(global_interpreter, venv_dir, rplugin)
 
 
 class VenvPackageStatus(ADT['VenvPackageStatus']):
