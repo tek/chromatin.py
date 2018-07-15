@@ -79,7 +79,7 @@ def rplugin_dir(name: str) -> str:
 
 
 def simple_rplugin(name: str, spec: str) -> Rplugin:
-    return cons_rplugin(ConfigRplugin(spec, Just(name), Nothing, Nothing))
+    return cons_rplugin(ConfigRplugin(spec, Just(name), Nothing, Nothing, Nothing))
 
 
 def single_venv_config(name: str, spec: str, **extra_vars: Any) -> Tuple[Rplugin, Venv, TestConfig]:

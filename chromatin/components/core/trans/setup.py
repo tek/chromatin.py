@@ -117,7 +117,7 @@ def show_plugins() -> Do:
 
 @prog.do(None)
 def add_plugin(spec: str, name) -> Do:
-    plugin = cons_rplugin(ConfigRplugin(spec, Maybe.optional(name), Nothing, Nothing))
+    plugin = cons_rplugin(ConfigRplugin(spec, Maybe.optional(name), Nothing, Nothing, Nothing))
     yield plugins_added(List(plugin))
 
 

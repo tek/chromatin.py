@@ -8,11 +8,19 @@ from amino.json.decoder import decode_json_type
 
 class ConfigRplugin(Dat['ConfigRplugin']):
 
-    def __init__(self, spec: str, name: Maybe[str], debug: Maybe[bool], pythonpath: Maybe[List[str]]) -> None:
+    def __init__(
+            self,
+            spec: str,
+            name: Maybe[str],
+            debug: Maybe[bool],
+            pythonpath: Maybe[List[str]],
+            interpreter: Maybe[str],
+    ) -> None:
         self.spec = spec
         self.name = name
         self.debug = debug
         self.pythonpath = pythonpath
+        self.interpreter = interpreter
 
 
 class Rplugin(ADT['Rplugin']):
@@ -93,6 +101,7 @@ def cons_rplugin(conf: ConfigRplugin) -> Rplugin:
         spec,
         conf.debug.get_or_strict(False),
         conf.pythonpath.get_or_strict(Nil),
+        conf.interpreter,
     )
 
 
