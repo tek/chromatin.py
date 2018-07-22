@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version_parts = (0, 13, 0, 'a', 16)
+version_parts = (0, 13, 0, 'a', 17)
 version = '.'.join(map(str, version_parts))
 
 setup(
@@ -14,7 +14,7 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=['unit', 'unit.*', 'integration', 'integration.*', 'test', 'test.*']),
     install_requires=[
-        'ribosome==13.0.0a66',
+        'ribosome==13.0.0a68',
     ],
     tests_require=[
         'kallikrein',
