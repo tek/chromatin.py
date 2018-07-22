@@ -239,7 +239,7 @@ class install_rplugin_args(Case[VenvRpluginMeta, List[str]], alg=VenvRpluginMeta
 
     def dir(self, meta: DirVenvRplugin) -> List[str]:
         req = Path(meta.dir) / 'requirements.txt'
-        return List('-r', req)
+        return List('-r', str(req))
 
 
 @do(NvimIO[List[str]])
