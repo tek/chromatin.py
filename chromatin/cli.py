@@ -4,11 +4,6 @@ import sys
 import traceback
 import logging
 
-if len(sys.argv) >= 5 and sys.argv[4]:
-    logging.basicConfig(filename=sys.argv[4], level=logging.DEBUG)
-    logging.debug('starting crm_run')
-
-
 def echo(nvim: Any, msg: str) -> None:
     safe = msg.replace('"', '\\"')
     nvim.command(f'echo "{safe}"')
@@ -79,7 +74,7 @@ def stage2(nvim: Any) -> int:
         return 0 if isinstance(result, NSuccess) else error(result)
     except Exception as e:
         ribo_log.caught_exception_error('initializing chromatin', e)
-        raise
+        raise e
 
 
 __all__ = ('run',)

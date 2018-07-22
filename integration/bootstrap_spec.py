@@ -31,7 +31,6 @@ def bootstrap_spec() -> Do:
     debug_log = temp_dir('bootstrap') / 'log'
     yield variable_set_prefixed('interpreter', 'python3.7')
     yield variable_set_prefixed('autobootstrap', False)
-    yield variable_set_prefixed('bootstrap_debug_log', str(debug_log))
     yield option_cat('runtimepath', List(str(project)))
     cram_exists_not = yield await_k(command_must_not_exist, 'Cram')
     yield runtime('chromatin.nvim/plugin/bootstrap')

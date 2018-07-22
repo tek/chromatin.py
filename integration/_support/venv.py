@@ -45,9 +45,9 @@ def clear_cache() -> Do:
     yield create_dir(venvs_path, parents=True, exist_ok=True)
 
 
-def plug_exists(name: str, **kw: Any) -> NvimIO[Expectation]:
+def plug_exists(name: str, timeout=5, **kw: Any) -> NvimIO[Expectation]:
     cmd = f'{name}Test'
-    return await_k(command_must_exist, cmd, **kw)
+    return await_k(command_must_exist, cmd, timeout=timeout, **kw)
 
 
 def venv_existent(base_dir: Path, timeout: float=10) -> Callable[[Rplugin], NvimIO[None]]:
