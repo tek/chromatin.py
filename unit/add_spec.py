@@ -3,7 +3,7 @@ from typing import TypeVar
 from kallikrein import k, Expectation
 from kallikrein.matchers import contain
 
-from test.base import rplugin_dir, single_venv_config
+from test.base import rplugin_dir, single_venv_config, present_venv
 
 from amino import Path, do, Do
 from amino.test.spec import SpecBase
@@ -23,16 +23,17 @@ target = ActiveRpluginMeta(name, 3, 1111)
 
 @do(NS[Env, Expectation])
 def add_spec(spec: str) -> Do:
+    yield NS.lift(present_venv(name))
     yield NS.lift(variable_set_prefixed('interpreter', '/usr/bin/python3.7'))
     yield NS.lift(variable_set_prefixed('debug_pythonpath', True))
-    yield request('cram', spec, name)
+    yield request('cram', spec, name=name)
     data = yield NS.inspect(lambda a: a.data)
-    return k(data.venvs.k).must(contain(name)) & k(data.active).must(contain(target))
+    return k(data.venvs).must(contain(name)) & k(data.active).must(contain(target))
 
 
 @do(NS[Env, Expectation])
 def directory_spec(spec: str) -> Do:
-    yield request('cram', spec, 'flagellum')
+    yield request('cram', spec, name='flagellum')
     active = yield NS.inspect(lambda a: a.data.active)
     return k(active).must(contain(target))
 

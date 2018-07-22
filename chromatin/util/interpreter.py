@@ -1,6 +1,6 @@
 import shutil
 
-from amino import do, Path, Do, Lists, env, Maybe, Nothing, IO
+from amino import do, Path, Do, Lists, env, Maybe, Nothing, IO, List
 
 from ribosome.nvim.io.compute import NvimIO
 from ribosome.nvim.io.api import N
@@ -35,14 +35,14 @@ def python_interpreter(global_spec: Maybe[str], local_spec: Maybe[str]) -> IO[Pa
     return find_interpreter(spec)
 
 
-def rplugin_interpreter(global_spec: Maybe[str], rplugin: Rplugin) -> IO[Path]:
-    return python_interpreter(global_spec, rplugin.interpreter)
-
-
 @do(NvimIO[Path])
 def global_interpreter() -> Do:
     global_spec = yield interpreter.value
     yield N.from_io(python_interpreter(global_spec.to_maybe, Nothing))
 
 
-__all__ = ('rplugin_interpreter', 'global_interpreter',)
+def join_pythonpath(paths: List[str]) -> str:
+    return paths.mk_string(':')
+
+
+__all__ = ('global_interpreter', 'join_pythonpath',)

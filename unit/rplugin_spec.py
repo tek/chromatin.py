@@ -6,9 +6,7 @@ from amino import IO
 from amino.case import Case
 from amino.test.spec import SpecBase
 
-from chromatin.model.rplugin import (DirRplugin, RpluginAbsent, RpluginReady, SiteRplugin, VenvRplugin, Rplugin,
-                                     RpluginStatus)
-from chromatin.rplugin import rplugin_status
+from chromatin.model.rplugin import DirRplugin, SiteRplugin, DistRplugin, Rplugin
 
 from test.base import simple_rplugin
 
@@ -23,19 +21,11 @@ class RpluginSpec(SpecBase):
     default rplugin $default
     '''
 
-    @property
-    def rplugin_status(self) -> Case[Rplugin, IO[RpluginStatus]]:
-        dir = temp_dir('rplugin', 'venv')
-        return rplugin_status(dir)
-
     def dir_rplugin(self) -> Expectation:
         dir = fixture_path('rplugin', name, name)
         spec = f'dir:{dir}'
         plugin = DirRplugin.cons(name, str(dir))
-        return (
-            (kf(simple_rplugin, name, spec) == plugin) &
-            (kio(self.rplugin_status, plugin) == RpluginReady(plugin))
-        )
+        return kf(simple_rplugin, name, spec) == plugin
 
     def site_rplugin(self) -> Expectation:
         pkg = 'subprocess'
@@ -46,25 +36,17 @@ class RpluginSpec(SpecBase):
         plugin_bad = SiteRplugin.cons(pkg_bad, pkg_bad)
         return (
             (kf(simple_rplugin, pkg, spec) == plugin) &
-            (kio(self.rplugin_status, plugin) == RpluginReady(plugin)) &
-            (kf(simple_rplugin, pkg_bad, spec_bad) == plugin_bad) &
-            (kio(self.rplugin_status, plugin_bad) == RpluginAbsent(plugin_bad))
+            (kf(simple_rplugin, pkg_bad, spec_bad) == plugin_bad)
         )
 
     def venv_rplugin(self) -> Expectation:
         spec = f'venv:{name}'
-        plugin = VenvRplugin.cons(name, name)
-        return (
-            (kf(simple_rplugin, name, spec) == plugin) &
-            (kio(self.rplugin_status, plugin) == RpluginAbsent(plugin))
-        )
+        plugin = DistRplugin.cons(name, name)
+        return kf(simple_rplugin, name, spec) == plugin
 
     def default(self) -> Expectation:
-        plugin = VenvRplugin.cons(name, name)
-        return (
-            (kf(simple_rplugin, name, name) == plugin) &
-            (kio(self.rplugin_status, plugin) == RpluginAbsent(plugin))
-        )
+        plugin = DistRplugin.cons(name, name)
+        return kf(simple_rplugin, name, name) == plugin
 
 
 __all__ = ('RpluginSpec',)

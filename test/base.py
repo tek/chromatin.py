@@ -4,17 +4,20 @@ from amino import Map, List, Either, Nil, Right, Path, Just, Nothing
 from amino.case import Case
 from amino.test import temp_dir, fixture_path
 from amino.lenses.lens import lens
+from amino.io import IOException
 
 from ribosome.nvim.api.data import StrictNvimApi
 from ribosome import NvimApi
 from ribosome.compute.output import (ProgIO, ProgGatherIOs, GatherIOs, ProgGatherSubprocesses, GatherSubprocesses, Echo,
-                                     ProgIOEcho)
+                                     ProgIOEcho, ProgGather, Gather, GatherSubprocessResult)
 from ribosome.compute.prog import Prog
 from ribosome.process import SubprocessResult
 from ribosome.nvim.io.state import NS
 from ribosome.compute.api import prog
 from ribosome.test.request import Handler
 from ribosome.test.config import TestConfig
+from ribosome.nvim.io.api import N
+from ribosome.nvim.io.compute import NvimIO
 
 from chromatin.model.venv import Venv, VenvMeta
 from chromatin.config.config import chromatin_config
@@ -62,13 +65,16 @@ class single_venv_io_interpreter(Generic[A], Case[ProgIO, Prog[A]], alg=ProgIO):
         self.venv = venv
 
     def prog_gather_ios(self, output_type: ProgGatherIOs, output: GatherIOs[A]) -> Prog[A]:
-        return Prog.pure(List(Right(self.venv)))
+        return Prog.pure(List(Right(self.venv.meta.name)))
 
     def prog_gather_subprocesses(self, output_type: ProgGatherSubprocesses, output: GatherSubprocesses[A]) -> Prog[A]:
-        return Prog.pure(List(Right(SubprocessResult(0, Nil, Nil, self.venv))))
+        return Prog.pure(List(Right(SubprocessResult(0, Nil, Nil, self.venv.name))))
 
     def prog_io_echo(self, po: ProgIOEcho, output: Echo) -> Prog[None]:
         return buffering_logger(output).replace(None)
+
+    def gather(self, po: ProgGather, output: Gather[A]) -> Prog[List[Either[IOException, A]]]:
+        return Prog.pure(List(Right(GatherSubprocessResult(SubprocessResult(0, Nil, Nil, self.venv.name)))))
 
     def case_default(self, po: ProgIO, output: A) -> Prog[A]:
         return Prog.unit
@@ -87,7 +93,7 @@ def single_venv_config(name: str, spec: str, **extra_vars: Any) -> Tuple[Rplugin
     dir = temp_dir('rplugin', 'venv')
     vars = Map(chromatin_venv_dir=str(dir)) ** Map(extra_vars)
     conf = lens.basic.state_ctor.set(LogBufferEnv.cons)(chromatin_config)
-    venv = Venv(rplugin, VenvMeta(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null'))))
+    venv = Venv(rplugin.name, VenvMeta(name, dir / name, Right(Path('/dev/null')), Right(Path('/dev/null'))))
     return rplugin, venv, TestConfig.cons(
         conf,
         vars=vars,
@@ -98,5 +104,9 @@ def single_venv_config(name: str, spec: str, **extra_vars: Any) -> Tuple[Rplugin
     )
 
 
+def present_venv(name: str) -> NvimIO[Path]:
+    return N.simple(temp_dir, 'rplugin', 'venv', 'flagellum', 'lib', 'python3.7')
+
+
 __all__ = ('test_handler', 'test_function_handler', 'single_venv_io_interpreter', 'rplugin_dir', 'test_command_handler',
-           'single_venv_config',)
+           'single_venv_config', 'present_venv',)

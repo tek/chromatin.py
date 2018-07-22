@@ -12,14 +12,14 @@ class LogBufferEnv(Env):
 
     @staticmethod
     def cons() -> 'LogBufferEnv':
-        return LogBufferEnv(Nil, Nothing, Nothing, Map(), Nil, Nil, Nil, Map(), log_buffer=Nil)
+        return LogBufferEnv(Nil, Nothing, Nothing, Nil, Nil, Nil, Nil, Map(), log_buffer=Nil)
 
     def __init__(
             self,
             rplugins: List[Rplugin],
             chromatin_rplugin: Maybe[Rplugin],
             chromatin_venv: Maybe[VenvMeta],
-            venvs: Map[str, VenvMeta],
+            venvs: List[str],
             ready: List[str],
             active: List[ActiveRpluginMeta],
             uninitialized: List[ActiveRpluginMeta],

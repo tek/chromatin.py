@@ -7,9 +7,9 @@ from ribosome.rpc.define import ActiveRpcTrigger
 from amino import List, _, Either, Boolean, Map, __, Maybe, Nil, L, do, Do
 from amino.dat import Dat
 
-from chromatin.model.venv import Venv, cons_venv_under, VenvMeta
+from chromatin.model.venv import Venv, VenvMeta
 from chromatin.model.rplugin import Rplugin, ActiveRplugin, cons_rplugin, ActiveRpluginMeta
-from chromatin.rplugin import venv_package_installed
+from chromatin.venv import venv_package_installed, cons_venv_under
 
 
 class Env(Dat['Env']):
@@ -18,8 +18,8 @@ class Env(Dat['Env']):
     def cons(
             rplugins: List[Rplugin]=Nil,
             chromatin_rplugin: Rplugin=None,
-            chromatin_venv: VenvMeta=None,
-            venvs: Map[str, VenvMeta]=Map(),
+            chromatin_venv: str=None,
+            venvs: List[str]=Nil,
             ready: List[str]=Nil,
             active: List[ActiveRpluginMeta]=Nil,
             uninitialized: List[ActiveRpluginMeta]=Nil,
@@ -40,8 +40,8 @@ class Env(Dat['Env']):
             self,
             rplugins: List[Rplugin],
             chromatin_rplugin: Maybe[Rplugin],
-            chromatin_venv: Maybe[VenvMeta],
-            venvs: Map[str, VenvMeta],
+            chromatin_venv: Maybe[str],
+            venvs: List[str],
             ready: List[str],
             active: List[ActiveRpluginMeta],
             uninitialized: List[ActiveRpluginMeta],
@@ -59,40 +59,12 @@ class Env(Dat['Env']):
     def add_plugin(self, name: str, spec: str) -> 'Env':
         return self.append1.rplugins(cons_rplugin(name, spec))
 
-    def add_plugins(self, rplugins: List[Rplugin]) -> 'Env':
-        return self.append.rplugins(rplugins)
-
-    def add_venv(self, venv: VenvMeta) -> 'Env':
-        return self if venv.rplugin in self.venvs else self.append.venvs((venv.rplugin, venv))
-
     def add_installed(self, rplugin: str) -> 'Env':
         return self.copy(ready=self.ready.cat(rplugin).distinct)
 
     @property
-    def rplugins_with_crm(self) -> List[Rplugin]:
-        return self.rplugins.cons_m(self.chromatin_rplugin)
-
-    def rplugin_by_name(self, name: str) -> Either[str, Rplugin]:
-        return self.rplugins_with_crm.find(lambda a: a.name == name).to_either(f'no rplugin with name `{name}`')
-
-    @property
-    @do(NvimIO[List[Venv]])
-    def missing(self) -> Do:
-        venvs = yield self.venvs.v.traverse(self.venv_from_meta, NvimIO)
-        yield N.pure(venvs.filter_not(venv_package_installed))
-
-    @property
     def _str_extra(self) -> List[Any]:
         return List(self.rplugins, self.venvs)
-
-    @do(NvimIO[Venv])
-    def venv_from_meta(self, meta: VenvMeta) -> Do:
-        rplugin = yield N.from_either(self.rplugin_by_name(meta.name))
-        yield self.venv_dir / L(cons_venv_under)(_, rplugin)
-
-    @property
-    def autoreboot(self) -> NvimIO[Boolean]:
-        return self.settings.autoreboot.value_or_default
 
     def rplugin(self, name: str) -> Either[str, Rplugin]:
         return self.rplugins.find(_.name == name).to_either(f'no rplugin named `{name}`')
@@ -158,7 +130,7 @@ class Env(Dat['Env']):
 
     @property
     def installed_with_crm(self) -> List[VenvMeta]:
-        return self.ready.flat_map(self.venvs.lift).cons_m(self.chromatin_venv)
+        return self.venvs.filter(self.ready.contains).cons_m(self.chromatin_venv)
 
 
 __all__ = ('Env',)

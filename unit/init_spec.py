@@ -6,15 +6,16 @@ from kallikrein.matchers.comparison import eq
 
 from amino import Path, _, do, Do
 from amino.test.spec import SpecBase
+from amino.test import temp_dir
 
 from ribosome.nvim.io.state import NS
 from ribosome.data.plugin_state import PS
 from ribosome.test.prog import request
 from ribosome.test.unit import unit_test
 
-from chromatin.model.rplugin import ActiveRpluginMeta, VenvRplugin
+from chromatin.model.rplugin import ActiveRpluginMeta, DistRplugin
 
-from test.base import rplugin_dir, single_venv_config
+from test.base import rplugin_dir, single_venv_config, present_venv
 
 name = 'flagellum'
 
@@ -25,21 +26,22 @@ rplugin, venv, conf = single_venv_config(name, spec, chromatin_rplugins=[dict(na
 
 @do(NS[PS, Expectation])
 def one_spec() -> Do:
+    yield NS.lift(present_venv(name))
     yield request('init')
     data = yield NS.inspect(lambda a: a.data)
-    return k(data.venvs.k).must(contain(name)) & k(data.active).must(contain(active_rplugin))
+    return k(data.venvs).must(contain(name)) & k(data.active).must(contain(active_rplugin))
 
 
 @do(NS[PS, Expectation])
 def crm_rplugin_spec() -> Do:
+    temp_dir('rplugin', 'venv', name, 'lib', 'python3.7')
     yield request('init')
     data = yield NS.inspect(lambda a: a.data)
     rplugin = data.chromatin_rplugin.to_either('no chromatin rplugin')
     venv = data.chromatin_venv.to_either('no chromatin venv')
     return (
-        k(rplugin).must(be_right(VenvRplugin.cons('chromatin', 'chromatin'))) &
-        k(venv // _.meta.python_executable).must(be_right(have_type(Path))) &
-        k(venv / _.meta.rplugin).must(eq(rplugin / _.name))
+        k(rplugin).must(be_right(DistRplugin.cons('chromatin', 'chromatin'))) &
+        k(venv).must(eq(rplugin / _.name))
     )
 
 

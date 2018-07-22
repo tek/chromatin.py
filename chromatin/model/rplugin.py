@@ -1,7 +1,7 @@
 from typing import Type, Any, Tuple
 import json
 
-from amino import Either, Map, Regex, do, Do, Try, List, Maybe, Nil, Nothing
+from amino import Either, Map, Regex, do, Do, Try, List, Maybe, Nil, Nothing, Path
 from amino.dat import ADT, Dat
 from amino.json.decoder import decode_json_type
 
@@ -50,6 +50,10 @@ class Rplugin(ADT['Rplugin']):
         self.pythonpath = pythonpath
         self.interpreter = interpreter
 
+    @property
+    def pythonpath_str(self) -> None:
+        return self.pythonpath.mk_string(':')
+
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, type(self)) and self.name == other.name and self.spec == other.spec
 
@@ -62,10 +66,10 @@ class Rplugin(ADT['Rplugin']):
 
     @staticmethod
     def simple(name: str) -> 'Rplugin':
-        return VenvRplugin.cons(name=name, spec=name)
+        return DistRplugin.cons(name=name, spec=name)
 
 
-class VenvRplugin(Rplugin):
+class DistRplugin(Rplugin):
     pass
 
 
@@ -80,7 +84,7 @@ class SiteRplugin(Rplugin):
 ctors: Map[str, Type[Rplugin]] = Map(
     dir=DirRplugin,
     site=SiteRplugin,
-    venv=VenvRplugin,
+    venv=DistRplugin,
 )
 prefixes = ctors.k.mk_string('|')
 spec_rex = Regex(f'(?P<prefix>{prefixes}):(?P<spec>.*)')
@@ -95,7 +99,7 @@ def parse_spec(raw_spec: str) -> Do:
 
 
 def cons_rplugin(conf: ConfigRplugin) -> Rplugin:
-    tpe, spec = parse_spec(conf.spec).get_or_strict((VenvRplugin, conf.spec))
+    tpe, spec = parse_spec(conf.spec).get_or_strict((DistRplugin, conf.spec))
     return tpe.cons(
         conf.name.get_or_strict(spec),
         spec,
@@ -105,18 +109,27 @@ def cons_rplugin(conf: ConfigRplugin) -> Rplugin:
     )
 
 
-class RpluginStatus(ADT['RpluginStatus']):
+class VenvRpluginMeta(ADT['VenvRplugin']):
+    pass
 
-    def __init__(self, rplugin: Rplugin) -> None:
+
+class DistVenvRplugin(VenvRpluginMeta):
+
+    def __init__(self, req: str) -> None:
+        self.req = req
+
+
+class DirVenvRplugin(VenvRpluginMeta):
+
+    def __init__(self, dir: Path) -> None:
+        self.dir = dir
+
+
+class VenvRplugin(Dat['VenvRplugin']):
+
+    def __init__(self, meta: VenvRpluginMeta, rplugin: Rplugin) -> None:
+        self.meta = meta
         self.rplugin = rplugin
-
-
-class RpluginReady(RpluginStatus):
-    pass
-
-
-class RpluginAbsent(RpluginStatus):
-    pass
 
 
 class ActiveRpluginMeta(Dat['ActiveRpluginMeta']):
@@ -138,5 +151,5 @@ class ActiveRplugin(Dat['ActiveRplugin']):
         return self.rplugin.name
 
 
-__all__ = ('Rplugin', 'VenvRplugin', 'DirRplugin', 'SiteRplugin', 'cons_rplugin', 'RpluginStatus', 'RpluginReady',
-           'RpluginAbsent', 'ActiveRpluginMeta', 'ActiveRplugin')
+__all__ = ('Rplugin', 'DistRplugin', 'DirRplugin', 'SiteRplugin', 'cons_rplugin', 'ActiveRpluginMeta', 'ActiveRplugin',
+           'VenvRplugin', 'DistVenvRplugin', 'DirVenvRplugin',)

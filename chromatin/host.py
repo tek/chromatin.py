@@ -12,15 +12,7 @@ from ribosome.nvim.io.api import N
 from ribosome.nvim.api.exists import function_exists
 
 log = module_log()
-stderr_handler_name = 'ChromatinJobStderr'
-
-stderr_handler_body = '''\
-let err = substitute(join(a:data, '\\r'), '"', '\\"', 'g')
-python3 import amino
-python3 from ribosome.logging import ribosome_envvar_file_logging
-python3 ribosome_envvar_file_logging()
-execute 'python3 amino.amino_log.error(f"""error in chromatin rpc job on channel ' . a:id . ':\\r' . err . '""")'
-'''
+stderr_handler_name = 'ChromatinRpcJobStderr'
 
 
 def host_cmdline(
@@ -37,13 +29,6 @@ def host_cmdline(
     return pre + [str(python_exe)] + debug_option + args
 
 
-@do(NvimIO[None])
-def define_stderr_handler() -> Do:
-    exists = yield function_exists(stderr_handler_name)
-    if not exists:
-        yield define_function(stderr_handler_name, List('id', 'data', 'event'), stderr_handler_body)
-
-
 @do(NvimIO[Tuple[int, int]])
 def start_host(
         python_exe: Path,
@@ -52,7 +37,6 @@ def start_host(
         debug: bool=False,
         pythonpath: List[str]=Nil,
 ) -> Do:
-    yield define_stderr_handler()
     cmdline = host_cmdline(python_exe, bin_path, plugin_path, debug, pythonpath)
     ribo_log.debug(f'starting host: {cmdline}; debug: {debug}')
     channel = yield nvim_call_tpe(int, 'jobstart', cmdline, dict(rpc=True, on_stderr=stderr_handler_name))

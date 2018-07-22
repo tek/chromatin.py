@@ -1,15 +1,15 @@
 from amino import List
 from amino.test import fixture_path
 
-from chromatin.model.rplugin import VenvRplugin
+from chromatin.model.rplugin import DistRplugin
 
 
 name1 = 'flagellum'
 name2 = 'cilia'
 path1 = fixture_path('rplugin', name1)
 path2 = fixture_path('rplugin', name2)
-plugin1 = VenvRplugin.cons(name1, name1)
-plugin2 = VenvRplugin.cons(name2, name2)
+plugin1 = DistRplugin.cons(name1, name1)
+plugin2 = DistRplugin.cons(name2, name2)
 plugins = List(
     dict(name=name1, spec=str(path1)),
     dict(name=name2, spec=str(path2)),

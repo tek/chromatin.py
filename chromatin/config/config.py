@@ -14,7 +14,7 @@ chromatin_config: Config = Config.cons(
     state_ctor=Env.cons,
     rpc=List(
         rpc.write(init).conf(prefix=Full()),
-        rpc.write(add_plugin).conf(name=Just('cram'), prefix=Plain()),
+        rpc.write(add_plugin).conf(name=Just('cram'), prefix=Plain(), json=True),
         rpc.write(setup_plugins),
         rpc.write(show_plugins),
         rpc.write(activate),

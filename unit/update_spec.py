@@ -8,7 +8,7 @@ from ribosome.test.prog import request
 from ribosome.test.unit import unit_test, update_data
 from ribosome.data.plugin_state import PS
 
-from test.base import rplugin_dir, single_venv_config
+from test.base import rplugin_dir, single_venv_config, present_venv
 
 from amino import Map, List, do, Do
 from amino.test.spec import SpecBase
@@ -25,9 +25,10 @@ rplugin, venv, conf = single_venv_config(name, spec, chromatin_rplugins=[dict(na
 
 @do(NS[PS, Expectation])
 def one_spec() -> Do:
+    yield NS.lift(present_venv(name))
     yield update_data(
         rplugins=List(rplugin),
-        venvs=Map({name: venv.meta}),
+        venvs=List(name),
         active=List(active_rplugin),
         ready=List(name),
     )

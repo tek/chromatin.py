@@ -11,10 +11,10 @@ from integration._support.venv import test_config, setup_one_with_venvs, venv_ex
 
 @do(NvimIO[Expectation])
 def auto_cram_spec() -> Do:
-    venvs, plugin = yield setup_one_with_venvs('flagellum')
-    yield venv_existent(venvs, timeout=4)(plugin)
-    yield package_installed(venvs)(plugin)
-    yield plug_exists('Flag')
+    venvs, venv_plugin = yield setup_one_with_venvs('flagellum')
+    yield venv_existent(venvs, timeout=4)(venv_plugin.rplugin)
+    yield package_installed(venvs)(venv_plugin.rplugin)
+    yield plug_exists('Flag', timeout=30)
 
 
 class AutostartAfterAddSpec(SpecBase):

@@ -16,19 +16,18 @@ from ribosome.nvim.api.command import nvim_command, nvim_command_output, nvim_sy
 from ribosome.nvim.api.option import option_cat
 from ribosome.nvim.api.variable import variable_set_prefixed, variable_raw
 from ribosome.nvim.io.api import N
-from ribosome.test.prog import request
 from ribosome.test.config import TestConfig
-from ribosome.nvim.io.state import NS
-from ribosome.test.integration.external import external_state_test
 from ribosome.nvim.api.exists import wait_until_valid
 from ribosome.test.integration.embed import plugin_test
 from ribosome.test.klk.matchers.command import command_must_exist
 from ribosome.test.klk.expectation import await_k
+from ribosome.test.rpc import json_cmd
 
-from chromatin.model.rplugin import Rplugin
-from chromatin.model.venv import VenvExistent, Venv
-from chromatin.rplugin import venv_exists, rplugin_ready, check_venv
+from chromatin.model.rplugin import Rplugin, VenvRplugin
+from chromatin.model.venv import Venv, VenvPresent
+from chromatin.rplugin import venv_exists, check_venv, create_dir
 from chromatin import chromatin_config
+from chromatin.components.core.trans.setup import cons_venv_rplugin
 
 from test.base import simple_rplugin
 
@@ -43,7 +42,7 @@ def venv_path(name: str) -> Path:
 @do(IO[None])
 def clear_cache() -> Do:
     yield IO.delay(shutil.rmtree, str(venvs_path), ignore_errors=True)
-    yield IO.delay(venvs_path.mkdir, parents=True, exist_ok=True)
+    yield create_dir(venvs_path, parents=True, exist_ok=True)
 
 
 def plug_exists(name: str, **kw: Any) -> NvimIO[Expectation]:
@@ -60,6 +59,12 @@ def venv_existent(base_dir: Path, timeout: float=10) -> Callable[[Rplugin], Nvim
             interval=.5,
         )
     return check
+
+
+@do(IO[Boolean])
+def rplugin_ready(base_dir: Path, plugin: Rplugin) -> Do:
+    status = yield check_venv(base_dir, plugin)
+    return isinstance(status, VenvPresent)
 
 
 def package_installed(base_dir: Path, timeout: float=20) -> Callable[[Rplugin], NvimIO[None]]:
@@ -79,7 +84,7 @@ def plugin_venv(base_dir: Path, rplugin: Rplugin) -> Do:
     venv_status = yield N.from_io(check_venv(base_dir, rplugin))
     yield (
         N.pure(venv_status.venv)
-        if isinstance(venv_status, VenvExistent) else
+        if isinstance(venv_status, VenvPresent) else
         N.error(f'venv for {rplugin} did not appear')
     )
 
@@ -97,15 +102,16 @@ def setup_venv_dir(venv_dir: Maybe[Path] = Nothing) -> Do:
 def setup_one(name: str, venv_dir: Maybe[Path]=Nothing) -> Do:
     plugin = simple_rplugin(name, name)
     path = fixture_path('rplugin', name)
-    yield nvim_command('Cram', str(path), name)
+    yield json_cmd('Cram', str(path), name=name)
     return plugin
 
 
-@do(NvimIO[Tuple[Path, Rplugin]])
+@do(NvimIO[Tuple[Path, VenvRplugin]])
 def setup_one_with_venvs(name: str, venv_dir: Maybe[Path] = Nothing) -> Do:
     base_dir = yield setup_venv_dir(venv_dir)
-    plugin = yield setup_one(name, venv_dir)
-    return base_dir, plugin
+    rplugin = yield setup_one(name, venv_dir)
+    venv_rplugin = yield N.m(cons_venv_rplugin.match(rplugin), f'couldn\'t cons VenvRplugin')
+    return base_dir, venv_rplugin
 
 
 @do(NvimIO[Tuple[Venv, Rplugin]])

@@ -1,32 +1,30 @@
-import sys
-import shutil
+from __future__ import annotations
 from typing import Tuple
 
-from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left, IO, Maybe, Nothing, Path, env, Lists
+from amino import do, __, List, _, Boolean, L, Either, Nil, Right, Left, IO, Maybe, Dat, Just, Nothing, Path
 from amino.do import Do
 from amino.state import State, EitherState
 from amino.lenses.lens import lens
 from amino.logging import module_log
+from amino.case import Case
 from ribosome.nvim.io.state import NS
 from ribosome import ribo_log
 from ribosome.compute.api import prog
 from ribosome.compute.output import Echo, GatherIOs
 from ribosome.compute.ribosome_api import Ribo
-from ribosome.nvim.io.compute import NvimIO
-from ribosome.nvim.io.api import N
 
-from chromatin.components.core.logic import (add_crm_venv, read_conf, activate_newly_installed, already_installed,
-                                             add_venv)
-from chromatin.model.rplugin import Rplugin, cons_rplugin, ConfigRplugin
-from chromatin.components.core.trans.install import install_missing, install_result
-from chromatin.model.rplugin import RpluginReady, VenvRplugin
-from chromatin.model.venv import bootstrap, Venv
-from chromatin.rplugin import rplugin_status
+from chromatin.components.core.logic import add_crm_venv, read_conf, activate_newly_installed, add_venv
+from chromatin.model.rplugin import (Rplugin, cons_rplugin, ConfigRplugin, VenvRplugin, DistVenvRplugin, DirVenvRplugin,
+                                     DirRplugin, SiteRplugin)
+from chromatin.components.core.trans.install import install_rplugins
+from chromatin.model.rplugin import DistRplugin
+from chromatin.model.venv import Venv, VenvStatus, VenvPresent, VenvAbsent
 from chromatin.util import resources
 from chromatin.settings import venv_dir, autostart, interpreter
 from chromatin.config.resources import ChromatinResources
 from chromatin.env import Env
 from chromatin.components.core.trans.tpe import CrmRibosome
+from chromatin.rplugin import venv_rplugin_status, cons_venv_rplugin, bootstrap_venv
 
 log = module_log()
 
@@ -40,57 +38,75 @@ def initialize() -> Do:
 
 @prog
 @do(EitherState[Env, None])
-def bootstrap_result(result: List[Either[str, Venv]]) -> Do:
+def bootstrap_result(result: List[Either[str, str]]) -> Do:
     def split(z: Tuple[List[str], List[Venv]], a: Either[str, Venv]) -> Tuple[List[str], List[Venv]]:
         err, vs = z
         return a.cata((lambda e: (err.cat(e), vs)), (lambda v: (err, vs.cat(v))))
     errors, venvs = result.fold_left((Nil, Nil))(split)
     ribo_log.debug(f'bootstrapped venvs: {venvs}')
-    yield venvs.map(_.meta).traverse(add_venv, State).to(EitherState)
+    yield venvs.traverse(add_venv, State).to(EitherState)
     error = errors.map(str).join_comma
     ret = Left(f'failed to setup venvs: {error}') if errors else Right(None)
     yield EitherState.lift(ret)
 
 
-@prog.io.gather
-@do(NS[CrmRibosome, GatherIOs])
-def setup_venvs_ios() -> Do:
-    dir = yield Ribo.setting(venv_dir)
+class rplugin_bootstrap_compute(Case[VenvStatus, IO[str]], alg=VenvStatus):
+
+    def __init__(self, global_interpreter: Maybe[Path], dir: Path) -> None:
+        self.global_interpreter = global_interpreter
+        self.dir = dir
+
+    def present(self, status: VenvPresent) -> IO[str]:
+        return IO.pure(status.venv.name)
+
+    def absent(self, status: VenvAbsent) -> IO[str]:
+        return bootstrap_venv(self.global_interpreter, self.dir, status.rplugin)
+
+
+
+@do(NS[CrmRibosome, List[VenvRplugin]])
+def venv_rplugins() -> Do:
     plugins = yield Ribo.inspect_main(_.rplugins)
-    status = yield NS.from_io(plugins.traverse(rplugin_status(dir), IO))
-    ready, absent = status.split_type(RpluginReady)
-    yield Ribo.zoom_main((ready / _.rplugin).traverse(L(already_installed)(dir, _), NS))
-    absent_venvs, other = (absent / _.rplugin).split_type(VenvRplugin)
+    return plugins.flat_map(cons_venv_rplugin.match)
+
+
+@prog.io.gather
+@do(NS[CrmRibosome, GatherIOs[List[Either[str, Maybe[Venv]]]]])
+def bootstrap_rplugins_io() -> Do:
+    vr = yield venv_rplugins()
+    dir = yield Ribo.setting(venv_dir)
     global_interpreter = yield Ribo.setting_raw(interpreter)
-    yield NS.pure(GatherIOs(absent_venvs.map(L(bootstrap)(global_interpreter.to_maybe, dir, _)), timeout=30))
+    status = yield NS.from_io(vr.traverse(lambda a: venv_rplugin_status(dir, a), IO))
+    ios = status.map(rplugin_bootstrap_compute(global_interpreter.to_maybe, dir))
+    yield NS.pure(GatherIOs(ios, timeout=30))
 
 
 @prog.do(None)
-def setup_venvs() -> Do:
-    '''check whether a venv exists for each plugin in the env.
+def bootstrap_rplugins() -> Do:
+    '''check whether a venv exists for each venv or dir plugin in the env.
     for those that don't have one, create venvs in `g:chromatin_venv_dir`.
     '''
-    result = yield setup_venvs_ios()
+    result = yield bootstrap_rplugins_io()
     yield bootstrap_result(result)
 
 
 @prog
-def post_setup() -> NS[ChromatinResources, None]:
-    return activate_newly_installed()
+@do(NS[CrmRibosome, None])
+def post_setup() -> Do:
+    yield activate_newly_installed()
 
 
 @prog.do(None)
 def setup_plugins() -> Do:
-    yield setup_venvs()
-    installed, errors = yield install_missing()
-    yield install_result(installed, errors)
+    yield bootstrap_rplugins()
+    yield install_rplugins()
     yield post_setup()
 
 
 @prog
-@do(NS[ChromatinResources, Boolean])
-def add_plugins(plugins: List[Rplugin]) -> None:
-    yield NS.modify(__.add_plugins(plugins)).zoom(lens.data)
+@do(NS[CrmRibosome, Boolean])
+def add_plugins(rplugins: List[Rplugin]) -> None:
+    yield Ribo.zoom_main(NS.modify(lambda s: s.append.rplugins(rplugins)))
     yield Ribo.setting(autostart)
 
 
@@ -115,9 +131,33 @@ def show_plugins() -> Do:
     return Echo.info(resources.show_plugins(dir, rplugins))
 
 
+class AddPluginOptions(Dat['AddPluginOptions']):
+
+    @staticmethod
+    def cons(name: str=None, pythonpath: List[str]=None, debug: bool=None, interpreter: str=None) -> AddPluginOptions:
+        return AddPluginOptions(
+            Maybe.optional(name),
+            Maybe.optional(pythonpath),
+            Maybe.optional(debug),
+            Maybe.optional(interpreter),
+        )
+
+    def __init__(
+            self,
+            name: Maybe[str],
+            pythonpath: Maybe[List[str]],
+            debug: Maybe[bool],
+            interpreter: Maybe[str],
+    ) -> None:
+        self.name = name
+        self.pythonpath = pythonpath
+        self.debug = debug
+        self.interpreter = interpreter
+
+
 @prog.do(None)
-def add_plugin(spec: str, name) -> Do:
-    plugin = cons_rplugin(ConfigRplugin(spec, Maybe.optional(name), Nothing, Nothing, Nothing))
+def add_plugin(spec: str, options: AddPluginOptions) -> Do:
+    plugin = cons_rplugin(ConfigRplugin(spec, options.name, options.debug, options.pythonpath, options.interpreter))
     yield plugins_added(List(plugin))
 
 
