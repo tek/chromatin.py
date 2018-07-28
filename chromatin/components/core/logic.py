@@ -248,7 +248,8 @@ def install_rplugin_subproc(venv_rplugin: VenvRplugin) -> Do:
     venv = yield venv_from_rplugin(venv_rplugin.rplugin)
     pip_bin = venv.meta.bin_path / 'pip'
     specific_args = install_rplugin_args.match(venv_rplugin.meta)
-    args = List('install', '-U', '--no-cache') + specific_args
+    extensions = venv_rplugin.rplugin.extensions
+    args = List('install', '-U', '--no-cache') + specific_args + extensions
     return Subprocess(pip_bin, args, venv_rplugin.rplugin.name, timeout=120)
 
 

@@ -134,12 +134,19 @@ def show_plugins() -> Do:
 class AddPluginOptions(Dat['AddPluginOptions']):
 
     @staticmethod
-    def cons(name: str=None, pythonpath: List[str]=None, debug: bool=None, interpreter: str=None) -> AddPluginOptions:
+    def cons(
+            name: str=None,
+            pythonpath: List[str]=None,
+            debug: bool=None,
+            interpreter: str=None,
+            extensions: List[str]=None,
+    ) -> AddPluginOptions:
         return AddPluginOptions(
             Maybe.optional(name),
             Maybe.optional(pythonpath),
             Maybe.optional(debug),
             Maybe.optional(interpreter),
+            Maybe.optional(extensions),
         )
 
     def __init__(
@@ -148,16 +155,19 @@ class AddPluginOptions(Dat['AddPluginOptions']):
             pythonpath: Maybe[List[str]],
             debug: Maybe[bool],
             interpreter: Maybe[str],
+            extensions: Maybe[List[str]],
     ) -> None:
         self.name = name
         self.pythonpath = pythonpath
         self.debug = debug
         self.interpreter = interpreter
+        self.extensions = extensions
 
 
 @prog.do(None)
 def add_plugin(spec: str, options: AddPluginOptions) -> Do:
-    plugin = cons_rplugin(ConfigRplugin(spec, options.name, options.debug, options.pythonpath, options.interpreter))
+    plugin = cons_rplugin(ConfigRplugin(spec, options.name, options.debug, options.pythonpath, options.interpreter,
+                                        options.extensions))
     yield plugins_added(List(plugin))
 
 

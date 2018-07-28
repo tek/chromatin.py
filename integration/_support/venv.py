@@ -4,7 +4,6 @@ from typing import Any, Tuple, Callable
 from amino import Path, do, IO, Do, Maybe, Nothing, List, Just, Map, Boolean
 
 from kallikrein import Expectation, k
-from kallikrein.matchers.typed import have_type
 from kallikrein.matcher import Matcher
 from kallikrein.matchers import contain
 from kallikrein.matchers.end_with import end_with
@@ -12,9 +11,9 @@ from amino.test.path import base_dir
 from amino.test import fixture_path, temp_dir
 
 from ribosome.nvim.io.compute import NvimIO
-from ribosome.nvim.api.command import nvim_command, nvim_command_output, nvim_sync_command
+from ribosome.nvim.api.command import nvim_command, nvim_sync_command
 from ribosome.nvim.api.option import option_cat
-from ribosome.nvim.api.variable import variable_set_prefixed, variable_raw
+from ribosome.nvim.api.variable import variable_set_prefixed
 from ribosome.nvim.io.api import N
 from ribosome.test.config import TestConfig
 from ribosome.nvim.api.exists import wait_until_valid
@@ -122,14 +121,6 @@ def install_one(name: str, venv_dir: Maybe[Path]=Nothing) -> Do:
     package_installed(base_dir, plugin)
     venv = yield plugin_venv(base_dir, plugin)
     return base_dir, venv, plugin
-
-
-@do(NvimIO[Venv])
-def activate_one(name: str, prefix: str) -> Do:
-    base_dir, venv, plugin = yield install_one(name)
-    yield nvim_command('CrmActivate')
-    later(plug_exists(prefix))
-    return venv
 
 
 def setup_venv(venv: str) -> NvimIO[Rplugin]:

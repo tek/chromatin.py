@@ -15,12 +15,14 @@ class ConfigRplugin(Dat['ConfigRplugin']):
             debug: Maybe[bool],
             pythonpath: Maybe[List[str]],
             interpreter: Maybe[str],
+            extensions: Maybe[List[str]],
     ) -> None:
         self.spec = spec
         self.name = name
         self.debug = debug
         self.pythonpath = pythonpath
         self.interpreter = interpreter
+        self.extensions = extensions
 
 
 class Rplugin(ADT['Rplugin']):
@@ -33,8 +35,9 @@ class Rplugin(ADT['Rplugin']):
             debug: bool=False,
             pythonpath: List[str]=Nil,
             interpreter: Maybe[str]=Nothing,
+            extensions: List[str]=Nil,
     ) -> 'Rplugin':
-        return cls(name, spec, debug, pythonpath, interpreter)
+        return cls(name, spec, debug, pythonpath, interpreter, extensions)
 
     def __init__(
             self,
@@ -43,12 +46,14 @@ class Rplugin(ADT['Rplugin']):
             debug: bool,
             pythonpath: List[str],
             interpreter: Maybe[str],
+            extensions: List[str],
     ) -> None:
         self.name = name
         self.spec = spec
         self.debug = debug
         self.pythonpath = pythonpath
         self.interpreter = interpreter
+        self.extensions = extensions
 
     @property
     def pythonpath_str(self) -> None:
@@ -106,6 +111,7 @@ def cons_rplugin(conf: ConfigRplugin) -> Rplugin:
         conf.debug.get_or_strict(False),
         conf.pythonpath.get_or_strict(Nil),
         conf.interpreter,
+        conf.extensions.get_or_strict(Nil)
     )
 
 

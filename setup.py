@@ -14,7 +14,7 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=['unit', 'unit.*', 'integration', 'integration.*', 'test', 'test.*']),
     install_requires=[
-        'ribosome==13.0.0a68',
+        'ribosome==13.0.0a70',
     ],
     tests_require=[
         'kallikrein',
