@@ -37,17 +37,17 @@ def initialize() -> Do:
 
 
 @prog
-@do(EitherState[Env, None])
+@do(NS[Env, None])
 def bootstrap_result(result: List[Either[str, str]]) -> Do:
     def split(z: Tuple[List[str], List[Venv]], a: Either[str, Venv]) -> Tuple[List[str], List[Venv]]:
         err, vs = z
         return a.cata((lambda e: (err.cat(e), vs)), (lambda v: (err, vs.cat(v))))
     errors, venvs = result.fold_left((Nil, Nil))(split)
     ribo_log.debug(f'bootstrapped venvs: {venvs}')
-    yield venvs.traverse(add_venv, State).to(EitherState)
+    yield venvs.traverse(add_venv, State).nvim
     error = errors.map(str).join_comma
     ret = Left(f'failed to setup venvs: {error}') if errors else Right(None)
-    yield EitherState.lift(ret)
+    yield NS.e(ret)
 
 
 class rplugin_bootstrap_compute(Case[VenvStatus, IO[str]], alg=VenvStatus):
