@@ -203,9 +203,9 @@ def activation_complete() -> Do:
         if exists:
             yield nvim_command(cmd)
     def stage(num: int) -> NvimIO[None]:
-        return prefixes.traverse(L(rplugin_stage)(_, num), NvimIO)
+        return prefixes.traverse(lambda a: rplugin_stage(a, num), NvimIO)
     yield NS.lift(wait())
-    yield NS.lift(Lists.range(1, 5).traverse(stage, NvimIO))
+    yield NS.lift(Lists.range(1, 6).traverse(stage, NvimIO))
     yield NS.modify(__.initialization_complete())
 
 

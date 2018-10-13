@@ -3,7 +3,6 @@ from kallikrein import Expectation
 from amino.test.spec import SpecBase
 from amino import do, Do, Map, List
 from amino.test.path import pkg_dir
-from amino.test import temp_dir
 
 from ribosome.nvim.io.compute import NvimIO
 from ribosome.test.klk.matchers.command import command_must_not_exist
