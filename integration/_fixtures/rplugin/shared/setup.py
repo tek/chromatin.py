@@ -11,6 +11,6 @@ def spec_setup(name: str, description: str='test plugin') -> None:
         license='MIT',
         packages=find_packages(),
         install_requires=[
-            'ribosome~=13.0.0a65',
+            'ribosome~=13.0.1a2',
         ],
     )
