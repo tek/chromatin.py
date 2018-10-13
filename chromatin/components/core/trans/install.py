@@ -45,7 +45,11 @@ def install_result(installed: List[SubprocessResult[str]], preinstalled: List[st
 @prog.echo
 @do(NS[Env, Echo])
 def installing_message(rplugins: List[str]) -> Do:
-    yield NS.pure(Echo.info(resources.installing_plugins(rplugins)))
+    yield NS.pure(
+        Echo.none()
+        if rplugins.empty else
+        Echo.info(resources.installing_plugins(rplugins))
+    )
 
 
 @prog.do(None)
