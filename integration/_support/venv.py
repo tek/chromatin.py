@@ -41,7 +41,7 @@ def venv_path(name: str) -> Path:
 @do(IO[None])
 def clear_cache() -> Do:
     yield IO.delay(shutil.rmtree, str(venvs_path), ignore_errors=True)
-    yield create_dir(venvs_path, parents=True, exist_ok=True)
+    yield create_dir(venvs_path)
 
 
 def plug_exists(name: str, timeout=5, **kw: Any) -> NvimIO[Expectation]:

@@ -26,9 +26,9 @@ def run() -> int:
         amino_root_logger.debug('starting chromatin, stage amino')
         try:
             from ribosome.rpc.start import start_external
-            from ribosome.rpc.uv.uv import cons_uv_stdio
+            from ribosome.rpc.io.start import cons_asyncio_stdio
             from ribosome.logging import nvim_logging
-            uv, rpc_comm = cons_uv_stdio()
+            asio, rpc_comm = cons_asyncio_stdio()
             nvim_api = start_external('define_handlers', rpc_comm).attempt.get_or_raise()
             nvim_logging(nvim_api)
             amino_root_logger.debug('starting chromatin, stage ribosome')
