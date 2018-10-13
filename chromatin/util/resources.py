@@ -31,6 +31,15 @@ def handled_plugins(action: str, names: List[str]) -> str:
     return f'{action} plugin{plural_s(names)}: {names.join_comma}'
 
 
+def installing_plugins(names: List[str]) -> str:
+    msg = handled_plugins('installing', names)
+    return f'{msg}…'
+
+
+def installing_plugin(name: str) -> str:
+    return installing_plugins(List(name))
+
+
 def installed_plugins(names: List[str]) -> str:
     return handled_plugins('installed', names)
 
@@ -59,4 +68,5 @@ def show_plugins(venv_dir: Path, plugins: List[Rplugin]) -> str:
 
 __all__ = ('xdg_cache_home', 'create_venv_dir_error', 'installed_plugin', 'updated_plugin',
            'no_plugins_match_for_activation', 'no_plugins_match_for_deactivation', 'plugins_install_failed',
-           'installed_plugins', 'updated_plugins', 'already_active', 'show_plugins_message')
+           'installed_plugins', 'updated_plugins', 'already_active', 'show_plugins_message', 'installing_plugins',
+           'installing_plugin',)
