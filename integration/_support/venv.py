@@ -22,11 +22,11 @@ from ribosome.test.klk.matchers.command import command_must_exist
 from ribosome.test.klk.expectation import await_k
 from ribosome.test.rpc import json_cmd
 
-from chromatin.model.rplugin import Rplugin, VenvRplugin
+from chromatin.model.rplugin import Rplugin, InstallableRplugin
 from chromatin.model.venv import Venv, VenvPresent
 from chromatin.rplugin import venv_exists, check_venv, create_dir
 from chromatin import chromatin_config
-from chromatin.components.core.trans.setup import cons_venv_rplugin
+from chromatin.components.core.trans.setup import cons_installable_rplugin
 
 from test.base import simple_rplugin
 
@@ -105,11 +105,11 @@ def setup_one(name: str, venv_dir: Maybe[Path]=Nothing) -> Do:
     return plugin
 
 
-@do(NvimIO[Tuple[Path, VenvRplugin]])
+@do(NvimIO[Tuple[Path, InstallableRplugin]])
 def setup_one_with_venvs(name: str, venv_dir: Maybe[Path] = Nothing) -> Do:
     base_dir = yield setup_venv_dir(venv_dir)
     rplugin = yield setup_one(name, venv_dir)
-    venv_rplugin = yield N.m(cons_venv_rplugin.match(rplugin), f'couldn\'t cons VenvRplugin')
+    venv_rplugin = yield N.m(cons_installable_rplugin.match(rplugin), f'couldn\'t cons InstallableRplugin')
     return base_dir, venv_rplugin
 
 

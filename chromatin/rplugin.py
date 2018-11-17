@@ -7,10 +7,11 @@ from amino.logging import module_log
 
 from ribosome.process import Subprocess
 
-from chromatin.model.venv import (VenvStatus, VenvPresent, VenvAbsent, VenvPackageStatus, VenvPackageExistent,
-                                  VenvPackageAbsent, Venv)
-from chromatin.model.rplugin import (DirRplugin, SiteRplugin, DistRplugin, Rplugin, VenvRplugin, DistVenvRplugin,
-                                     DirVenvRplugin)
+from chromatin.model.venv import VenvStatus, VenvPresent, VenvAbsent, Venv
+from chromatin.model.rplugin import (DirRplugin, SiteRplugin, DistRplugin, Rplugin, InstallableRplugin, DistVenvRplugin,
+                                     DirVenvRplugin, StackageRplugin, HsDirRplugin, HsStackDirRplugin,
+                                     HsStackageRplugin, VenvRplugin, HsInstallableRplugin, HackageRplugin,
+                                     HsHackageRplugin)
 from chromatin.venv import cons_venv
 from chromatin.util.interpreter import python_interpreter
 
@@ -40,20 +41,29 @@ def venv_exists(base_dir: Path, plugin: Rplugin) -> Do:
     return isinstance(status, VenvPresent)
 
 
-def venv_rplugin_status(base_dir: Path, venv_rplugin: VenvRplugin) -> IO[VenvStatus]:
-    return check_venv(base_dir, venv_rplugin.rplugin)
+def venv_rplugin_status(base_dir: Path, rplugin: Rplugin) -> IO[VenvStatus]:
+    return check_venv(base_dir, rplugin)
 
 
-class cons_venv_rplugin(Case[Rplugin, Maybe[VenvRplugin]], alg=Rplugin):
+class cons_installable_rplugin(Case[Rplugin, Maybe[InstallableRplugin]], alg=Rplugin):
 
-    def dist(self, a: DistRplugin) -> Maybe[VenvRplugin]:
-        return Just(VenvRplugin(DistVenvRplugin(a.spec), a))
+    def dist(self, a: DistRplugin) -> Maybe[InstallableRplugin]:
+        return Just(InstallableRplugin(VenvRplugin(DistVenvRplugin(a.spec)), a))
 
-    def dir(self, a: DirRplugin) -> Maybe[VenvRplugin]:
-        return Just(VenvRplugin(DirVenvRplugin(Path(a.spec)), a))
+    def dir(self, a: DirRplugin) -> Maybe[InstallableRplugin]:
+        return Just(InstallableRplugin(VenvRplugin(DirVenvRplugin(Path(a.spec))), a))
 
-    def site(self, a: SiteRplugin) -> Maybe[VenvRplugin]:
+    def site(self, a: SiteRplugin) -> Maybe[InstallableRplugin]:
         return Nothing
+
+    def hackage(self, a: HackageRplugin) -> Maybe[InstallableRplugin]:
+        return Just(InstallableRplugin(HsInstallableRplugin(HsHackageRplugin(a.spec)), a))
+
+    def stackage(self, a: StackageRplugin) -> Maybe[InstallableRplugin]:
+        return Just(InstallableRplugin(HsInstallableRplugin(HsStackageRplugin(a.spec)), a))
+
+    def hs_dir(self, a: HsDirRplugin) -> Maybe[InstallableRplugin]:
+        return Just(InstallableRplugin(HsInstallableRplugin(HsStackDirRplugin(Path(a.spec))), a))
 
 
 @do(IO[None])
@@ -89,4 +99,4 @@ def bootstrap_venv(global_interpreter: Maybe[Path], base_dir: Path, rplugin: Rpl
 
 
 __all__ = ('check_venv', 'venv_exists', 'venv_package_installed', 'venv_status_check', 'rplugin_ready',
-           'venv_rplugin_status', 'cons_venv_rplugin',)
+           'venv_rplugin_status', 'cons_installable_rplugin',)

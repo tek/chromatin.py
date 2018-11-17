@@ -1,15 +1,12 @@
 from typing import Any
 
-from ribosome.nvim.io.compute import NvimIO
-from ribosome.nvim.io.api import N
 from ribosome.rpc.define import ActiveRpcTrigger
 
-from amino import List, _, Either, Boolean, Map, __, Maybe, Nil, L, do, Do
+from amino import List, Either, Map, Maybe, Nil, L, do, Do
 from amino.dat import Dat
 
 from chromatin.model.venv import Venv, VenvMeta
 from chromatin.model.rplugin import Rplugin, ActiveRplugin, cons_rplugin, ActiveRpluginMeta
-from chromatin.venv import venv_package_installed, cons_venv_under
 
 
 class Env(Dat['Env']):
@@ -24,6 +21,7 @@ class Env(Dat['Env']):
             active: List[ActiveRpluginMeta]=Nil,
             uninitialized: List[ActiveRpluginMeta]=Nil,
             triggers: Map[str, List[ActiveRpcTrigger]]=Map(),
+            errors: List[str]=Nil,
     ) -> 'Env':
         return Env(
             rplugins,
@@ -34,6 +32,7 @@ class Env(Dat['Env']):
             active,
             uninitialized,
             triggers,
+            errors,
         )
 
     def __init__(
@@ -46,6 +45,7 @@ class Env(Dat['Env']):
             active: List[ActiveRpluginMeta],
             uninitialized: List[ActiveRpluginMeta],
             triggers: Map[str, List[ActiveRpcTrigger]],
+            errors: List[str],
     ) -> None:
         self.rplugins = rplugins
         self.chromatin_rplugin = chromatin_rplugin
@@ -55,6 +55,7 @@ class Env(Dat['Env']):
         self.active = active
         self.uninitialized = uninitialized
         self.triggers = triggers
+        self.errors = errors
 
     def add_plugin(self, name: str, spec: str) -> 'Env':
         return self.append1.rplugins(cons_rplugin(name, spec))
@@ -67,15 +68,15 @@ class Env(Dat['Env']):
         return List(self.rplugins, self.venvs)
 
     def rplugin(self, name: str) -> Either[str, Rplugin]:
-        return self.rplugins.find(_.name == name).to_either(f'no rplugin named `{name}`')
+        return self.rplugins.find(lambda a: a.name == name).to_either(f'no rplugin named `{name}`')
 
     @property
     def active_packages(self) -> Either[str, List[Rplugin]]:
-        return self.active_rplugins / __.map(_.rplugin)
+        return self.active_rplugins.map(lambda a: a.map(lambda a: a.rplugin))
 
     @property
     def active_package_names(self) -> Either[str, List[str]]:
-        return self.active_rplugins / __.map(_.name)
+        return self.active_rplugins.map(lambda a: a.map(lambda a: a.name))
 
     @property
     def ready_rplugins(self) -> Either[str, List[Rplugin]]:
@@ -88,11 +89,11 @@ class Env(Dat['Env']):
     def host_started(self, rplugin: ActiveRpluginMeta) -> 'Env':
         return self.append1.active(rplugin).append1.uninitialized(rplugin)
 
-    def initialization_complete(self) -> 'Env':
+    def initialization_complete(self, failed: List[str]) -> 'Env':
         return self.set.uninitialized(List())
 
     def deactivate_rplugin(self, meta: ActiveRpluginMeta) -> 'Env':
-        return self.mod.active(__.without(meta))
+        return self.mod.active(lambda a: a.without(meta))
 
     def ready_by_name(self, names: List[str]) -> Either[str, List[Rplugin]]:
         return names.filter(self.ready.contains).traverse(self.rplugin, Either)
@@ -103,7 +104,7 @@ class Env(Dat['Env']):
     def active_rplugin(self, meta: ActiveRpluginMeta) -> Either[str, ActiveRplugin]:
         return (
             self.rplugins
-            .find(_.name == meta.rplugin)
+            .find(lambda a: a.name == meta.rplugin)
             .map(lambda p: ActiveRplugin(p, meta))
             .to_either(f'no rplugin for {meta}')
         )

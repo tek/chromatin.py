@@ -17,6 +17,7 @@ from chromatin.model.rplugin import ActiveRpluginMeta
 from chromatin.env import Env
 
 name = 'flagellum'
+hs_name = 'flagellum.hs'
 A = TypeVar('A')
 target = ActiveRpluginMeta(name, 3, 1111)
 
@@ -38,10 +39,18 @@ def directory_spec(spec: str) -> Do:
     return k(active).must(contain(target))
 
 
+@do(NS[Env, Expectation])
+def hs_directory_spec(spec: str) -> Do:
+    yield request('cram', spec, name=name)
+    active = yield NS.inspect(lambda a: a.data.active)
+    return k(active).must(contain(target))
+
+
 class AddSpec(SpecBase):
     '''
     add a plugin $add
     add a plugin from directory $directory
+    add a haskell plugin from directory $hs_directory
     '''
 
     def add(self) -> Expectation:
@@ -55,6 +64,12 @@ class AddSpec(SpecBase):
         spec = f'dir:{plugin_dir}'
         rplugin, venv, conf = single_venv_config(name, spec)
         return unit_test(conf, directory_spec, spec)
+
+    def hs_directory(self) -> Expectation:
+        plugin_dir = rplugin_dir(hs_name)
+        spec = f'hs_dir:{plugin_dir}'
+        rplugin, venv, conf = single_venv_config(name, spec)
+        return unit_test(conf, hs_directory_spec, spec)
 
 
 __all__ = ('AddSpec',)

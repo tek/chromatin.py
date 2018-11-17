@@ -6,7 +6,6 @@ from ribosome.nvim.io.compute import NvimIO
 from ribosome.nvim.io.api import N
 
 from chromatin.settings import interpreter
-from chromatin.model.rplugin import Rplugin
 
 
 @do(IO[Path])
@@ -45,4 +44,18 @@ def join_pythonpath(paths: List[str]) -> str:
     return paths.mk_string(':')
 
 
-__all__ = ('global_interpreter', 'join_pythonpath',)
+@do(IO[Path])
+def which(name: str) -> Do:
+    exe = yield IO.delay(shutil.which, name)
+    return Path(exe)
+
+
+def cabal_exe() -> IO[Path]:
+    return which('cabal')
+
+
+def stack_exe() -> IO[Path]:
+    return which('stack')
+
+
+__all__ = ('global_interpreter', 'join_pythonpath', 'stack_exe', 'cabal_exe',)

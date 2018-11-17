@@ -6,9 +6,13 @@ from amino.do import Do
 from amino.logging import module_log
 from amino.case import Case
 
+from ribosome.nvim.io.compute import NvimIO
+
 from chromatin.util.interpreter import python_interpreter
 from chromatin.model.venv import (Venv, VenvMeta, VenvPackageExistent, VenvPackageAbsent, VenvPackageStatus, VenvStatus,
                                   VenvPresent, VenvAbsent)
+from chromatin.model.rplugin import Rplugin
+from chromatin.settings import venv_dir
 
 log = module_log()
 
@@ -68,5 +72,11 @@ class venv_status_check(Case[VenvStatus, IO[Boolean]], alg=VenvStatus):
         return IO.pure(false)
 
 
+@do(NvimIO[Venv])
+def venv_from_rplugin(rplugin: Rplugin) -> Do:
+    dir = yield venv_dir.value_or_default()
+    return cons_venv_under(dir, rplugin.name)
+
+
 __all__ = ('venv_site', 'venv_plugin_path', 'cons_venv', 'cons_venv_under', 'venv_package_status_site',
-           'venv_package_status', 'venv_package_installed', 'venv_status_check',)
+           'venv_package_status', 'venv_package_installed', 'venv_status_check', 'venv_from_rplugin',)

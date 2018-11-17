@@ -16,6 +16,7 @@ class ConfigRplugin(Dat['ConfigRplugin']):
             pythonpath: Maybe[List[str]],
             interpreter: Maybe[str],
             extensions: Maybe[List[str]],
+            track: Maybe[bool],
     ) -> None:
         self.spec = spec
         self.name = name
@@ -23,6 +24,7 @@ class ConfigRplugin(Dat['ConfigRplugin']):
         self.pythonpath = pythonpath
         self.interpreter = interpreter
         self.extensions = extensions
+        self.track = track
 
 
 class Rplugin(ADT['Rplugin']):
@@ -36,8 +38,9 @@ class Rplugin(ADT['Rplugin']):
             pythonpath: List[str]=Nil,
             interpreter: Maybe[str]=Nothing,
             extensions: List[str]=Nil,
+            track: bool=True,
     ) -> 'Rplugin':
-        return cls(name, spec, debug, pythonpath, interpreter, extensions)
+        return cls(name, spec, debug, pythonpath, interpreter, extensions, track)
 
     def __init__(
             self,
@@ -47,6 +50,7 @@ class Rplugin(ADT['Rplugin']):
             pythonpath: List[str],
             interpreter: Maybe[str],
             extensions: List[str],
+            track: bool,
     ) -> None:
         self.name = name
         self.spec = spec
@@ -54,6 +58,7 @@ class Rplugin(ADT['Rplugin']):
         self.pythonpath = pythonpath
         self.interpreter = interpreter
         self.extensions = extensions
+        self.track = track
 
     @property
     def pythonpath_str(self) -> None:
@@ -86,10 +91,25 @@ class SiteRplugin(Rplugin):
     pass
 
 
+class HackageRplugin(Rplugin):
+    pass
+
+
+class StackageRplugin(Rplugin):
+    pass
+
+
+class HsDirRplugin(Rplugin):
+    pass
+
+
 ctors: Map[str, Type[Rplugin]] = Map(
     dir=DirRplugin,
     site=SiteRplugin,
     venv=DistRplugin,
+    hackage=HackageRplugin,
+    stackage=StackageRplugin,
+    hs_dir=HsDirRplugin,
 )
 prefixes = ctors.k.mk_string('|')
 spec_rex = Regex(f'(?P<prefix>{prefixes}):(?P<spec>.*)')
@@ -111,11 +131,34 @@ def cons_rplugin(conf: ConfigRplugin) -> Rplugin:
         conf.debug.get_or_strict(False),
         conf.pythonpath.get_or_strict(Nil),
         conf.interpreter,
-        conf.extensions.get_or_strict(Nil)
+        conf.extensions.get_or_strict(Nil),
+        conf.track.get_or_strict(True),
     )
 
 
-class VenvRpluginMeta(ADT['VenvRplugin']):
+class HsRpluginMeta(ADT['HsRpluginMeta']):
+    pass
+
+
+class HsStackDirRplugin(HsRpluginMeta):
+
+    def __init__(self, dir: Path) -> None:
+        self.dir = dir
+
+
+class HsHackageRplugin(HsRpluginMeta):
+
+    def __init__(self, dep: str) -> None:
+        self.dep = dep
+
+
+class HsStackageRplugin(HsRpluginMeta):
+
+    def __init__(self, dep: str) -> None:
+        self.dep = dep
+
+
+class VenvRpluginMeta(ADT['VenvRpluginMeta']):
     pass
 
 
@@ -131,9 +174,25 @@ class DirVenvRplugin(VenvRpluginMeta):
         self.dir = dir
 
 
-class VenvRplugin(Dat['VenvRplugin']):
+class InstallableRpluginMeta(ADT['InstallableRplugin']):
+    pass
 
-    def __init__(self, meta: VenvRpluginMeta, rplugin: Rplugin) -> None:
+
+class VenvRplugin(InstallableRpluginMeta):
+
+    def __init__(self, conf: VenvRpluginMeta) -> None:
+        self.conf = conf
+
+
+class HsInstallableRplugin(InstallableRpluginMeta):
+
+    def __init__(self, conf: HsRpluginMeta) -> None:
+        self.conf = conf
+
+
+class InstallableRplugin(Dat['InstallableRplugin']):
+
+    def __init__(self, meta: InstallableRpluginMeta, rplugin: Rplugin) -> None:
         self.meta = meta
         self.rplugin = rplugin
 
@@ -158,4 +217,5 @@ class ActiveRplugin(Dat['ActiveRplugin']):
 
 
 __all__ = ('Rplugin', 'DistRplugin', 'DirRplugin', 'SiteRplugin', 'cons_rplugin', 'ActiveRpluginMeta', 'ActiveRplugin',
-           'VenvRplugin', 'DistVenvRplugin', 'DirVenvRplugin',)
+           'InstallableRplugin', 'DistVenvRplugin', 'DirVenvRplugin', 'StackageRplugin', 'HsDirRplugin',
+           'InstallableRpluginMeta', 'HsHackageRplugin',)

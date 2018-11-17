@@ -1,19 +1,12 @@
 import abc
-import shutil
-import sys
 import pkg_resources
 
-from amino import Path, IO, do, Boolean, Maybe, Lists, Either
+from amino import Path, Boolean
 from amino.boolean import true, false
-from amino.do import Do
 from amino.dat import ADT, Dat
-from amino.logging import module_log
-
-from ribosome.process import Subprocess
-
 
 from chromatin.model.rplugin import Rplugin
-from chromatin.util.interpreter import python_interpreter
+
 
 class VenvMeta(Dat['VenvMeta']):
 
@@ -96,5 +89,6 @@ class VenvPackageAbsent(VenvPackageStatus):
     def exists(self) -> Boolean:
         return false
 
+
 __all__ = ('VenvStatus', 'VenvPresent', 'VenvAbsent', 'VenvPackageAbsent', 'VenvPackageExistent', 'VenvPackageStatus',
-           'Venv', 'venv_plugin_path',)
+           'Venv',)

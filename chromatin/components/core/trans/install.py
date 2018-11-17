@@ -1,8 +1,7 @@
-from amino import do, List, _, Lists, L, Path
+from amino import do, List, _, Lists, Path
 from amino.do import Do
 from amino.boolean import false, true
 from amino.io import IOException
-from amino.lenses.lens import lens
 from amino.state import State
 from amino.logging import module_log
 

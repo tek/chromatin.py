@@ -12,7 +12,7 @@ class LogBufferEnv(Env):
 
     @staticmethod
     def cons() -> 'LogBufferEnv':
-        return LogBufferEnv(Nil, Nothing, Nothing, Nil, Nil, Nil, Nil, Map(), log_buffer=Nil)
+        return LogBufferEnv(Nil, Nothing, Nothing, Nil, Nil, Nil, Nil, Map(), Nil, log_buffer=Nil)
 
     def __init__(
             self,
@@ -24,6 +24,7 @@ class LogBufferEnv(Env):
             active: List[ActiveRpluginMeta],
             uninitialized: List[ActiveRpluginMeta],
             triggers: Map[str, List[ActiveRpcTrigger]],
+            errors: List[str],
             log_buffer: List[Echo]=Nil,
     ) -> None:
         self.rplugins = rplugins
@@ -35,6 +36,7 @@ class LogBufferEnv(Env):
         self.uninitialized = uninitialized
         self.triggers = triggers
         self.log_buffer = log_buffer
+        self.errors = errors
 
 
 __all__ = ('LogBufferEnv',)

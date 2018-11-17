@@ -82,10 +82,11 @@ def deactivate_spec() -> Do:
     channel = yield flag_channel_id()
     yield await_k(flag_jobpid_becomes, greater(0))
     yield nvim_command('CrmDeactivate')
-    yield await_k(command_must_not_exist, 'FlagTest')
+    command_nonexistent = yield await_k(command_must_not_exist, 'FlagTest', timeout=10)
     quit_var = yield var_must_become('flagellum_quit', 1)
     pid = yield N.safe(nvim_call_tpe(int, 'jobpid', channel))
     return (
+        command_nonexistent &
         k(pid).must(have_type(NError)) &
         quit_var
     )

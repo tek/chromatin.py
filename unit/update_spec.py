@@ -1,4 +1,3 @@
-from typing import Any
 from kallikrein import k, Expectation
 from kallikrein.matchers import contain
 
