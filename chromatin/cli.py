@@ -2,7 +2,7 @@ from typing import Any
 
 import sys
 import traceback
-import logging
+
 
 def echo(nvim: Any, msg: str) -> None:
     safe = msg.replace('"', '\\"')
