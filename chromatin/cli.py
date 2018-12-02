@@ -54,7 +54,7 @@ def stage2(nvim: Any) -> int:
         from ribosome.nvim.io.data import NSuccess
         from ribosome.nvim.api.exists import wait_for_command
         import chromatin
-        from chromatin.host import start_host
+        from chromatin.host import start_python_host
         ex, bp, ins = Lists.wrap(sys.argv).lift_all(1, 2, 3).get_or_fail(f'invalid arg count for `crm_run`: {sys.argv}')
         python_exe = Path(ex)
         bin_path = Path(bp)
@@ -65,7 +65,7 @@ def stage2(nvim: Any) -> int:
             raise Exception(f'failed to initialize chromatin: {a}')
         @do(NvimIO[int])
         def run() -> Do:
-            channel, pid = yield start_host(python_exe, bin_path, plugin_path)
+            channel, pid = yield start_python_host(python_exe, bin_path, plugin_path)
             ribo_log.debug(f'starting chromatin, host started: {channel}/{pid}')
             yield wait_for_command('ChromatinPoll')
             if installed:
