@@ -1,0 +1,13 @@
+os: osx
+before_install:
+  - brew install python
+  - brew install neovim
+install:
+  - pip install -r requirements.txt
+script:
+  - klk unit
+  - klk integration
+env:
+  - AMINO_LOG_DIR=/tmp/amino
+after_failure:
+  - cat /tmp/amino/*
