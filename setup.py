@@ -17,7 +17,7 @@ setup(
         'ribosome==13.0.1a7',
     ],
     tests_require=[
-        'kallikrein',
+        'kallikrein==0.22.0a17',
     ],
     entry_points={
         'console_scripts': [
