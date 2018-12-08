@@ -18,8 +18,8 @@ from ribosome.compute.output import (GatherSubprocesses, GatherIOResult, GatherI
                                      GatherSubprocessResult, GatherIO, GatherSubprocess, Gather)
 from ribosome.nvim.io.api import N
 from ribosome.nvim.api.command import runtime, nvim_command
-from ribosome.nvim.api.exists import command_exists, wait_until_function_produces, wait_for_function
-from ribosome.nvim.api.function import nvim_call_json
+from ribosome.nvim.api.exists import command_exists, wait_until_function_produces, wait_for_function, function_exists
+from ribosome.nvim.api.function import nvim_call_json, nvim_call_function
 from ribosome.rpc.define import ActiveRpcTrigger, undef_command
 from ribosome.compute.ribosome_api import Ribo
 from ribosome.components.internal.prog import RpcTrigger
@@ -182,10 +182,14 @@ def reboot_plugins(plugins: List[str]) -> Do:
 
 @do(NvimIO[None])
 def rplugin_stage(prefix: str, num: int) -> Do:
-    cmd = f'{prefix}Stage{num}'
-    exists = yield command_exists(cmd)
+    name = f'{prefix}Stage{num}'
+    exists = yield command_exists(name)
     if exists:
-        yield nvim_command(cmd)
+        yield nvim_command(name)
+    else:
+        fun_exists = yield function_exists(name)
+        if fun_exists:
+            yield nvim_call_function(name)
 
 
 def init_stage(prefixes: List[str]) -> Callable[[int], NvimIO[None]]:
