@@ -26,7 +26,6 @@ class HackageSpec(SpecBase):
     haskell hackage plugin $hackage
     '''
 
-    # @pending
     def hackage(self) -> Expectation:
         return external_state_test(test_config, hackage_spec)
 
