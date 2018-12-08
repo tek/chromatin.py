@@ -1,3 +1,5 @@
+import os
+
 from amino import Path, do, Do
 
 from ribosome.nvim.io.api import N
@@ -23,10 +25,19 @@ def cabal_rplugin_executable(rplugin: Rplugin) -> Path:
     return Path.home() / '.cabal' / 'bin' / rplugin.name
 
 
+def cabal_rplugin_cmdline(exe: Path, name: str, debug: bool) -> str:
+    extra = (
+        f'-l /tmp/chromatin-{name}-{os.getpid()} -v DEBUG'
+        if debug else
+        ''
+    )
+    return f'{exe} {extra}'
+
+
 @do(NvimIO[ActiveRplugin])
 def activate_cabal_plugin(rplugin: Rplugin, dir: Path) -> Do:
     exe = cabal_rplugin_executable(rplugin)
-    yield start_rplugin_host(rplugin, lambda debug: start_host(str(exe), debug))
+    yield start_rplugin_host(rplugin, lambda debug: start_host(cabal_rplugin_cmdline(exe, rplugin.name, debug), debug))
 
 
 __all__ = ('activate_stack_plugin', 'activate_cabal_plugin', 'cabal_rplugin_executable',)
