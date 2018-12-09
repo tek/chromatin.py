@@ -25,8 +25,8 @@ class install_rplugin_subproc(Case[InstallableRpluginMeta, NvimIO[Subprocess[str
         pip_bin = venv.meta.bin_path / 'pip'
         specific_args = install_venv_rplugin_args.match(venv_rplugin.conf)
         extensions = self.rplugin.rplugin.extensions
-        args = List('install', '-U', '--no-cache') + specific_args + extensions
-        return Subprocess(pip_bin, args, self.rplugin.rplugin.name, timeout=120)
+        args = List('install', '-U', '--no-cache', '--disable-pip-version-check') + specific_args + extensions
+        return Subprocess(pip_bin, args, self.rplugin.rplugin.name, timeout=120, shell=True)
 
     def hs(self, a: HsInstallableRplugin) -> NvimIO[Subprocess[str]]:
         return install_hs_rplugin(self.rplugin)(a.conf)
